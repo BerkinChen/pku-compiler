@@ -58,7 +58,7 @@ std::string FuncTypeAST::to_string() const {
 }
 
 void* FuncTypeAST::to_koopa() const {
-  if (type == "int") return type_kind(KOOPA_RTT_INT32);
+  if (type == "int") return (void*)type_kind(KOOPA_RTT_INT32);
   return nullptr;  // not implemented
 }
 

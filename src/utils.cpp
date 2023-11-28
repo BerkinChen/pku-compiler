@@ -17,8 +17,8 @@ koopa_raw_slice_t slice(std::vector<const void *> &vec,
   return ret;
 }
 
-koopa_raw_type_kind *type_kind(koopa_raw_type_tag_t tag) {
+koopa_raw_type_t type_kind(koopa_raw_type_tag_t tag) {
   koopa_raw_type_kind_t *ret = new koopa_raw_type_kind_t();
   ret->tag = tag;
-  return ret;
+  return (koopa_raw_type_t)ret;
 }
