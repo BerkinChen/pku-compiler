@@ -36,16 +36,19 @@ int main(int argc, const char *argv[]) {
   // 输出到输出文件
   koopa_raw_program_t raw = *(koopa_raw_program_t *)ast->to_koopa();
   ast.release();
-  koopa_program_t program;
-  //std::cout << "build koopa success" << std::endl;
-  koopa_error_code_t eno = koopa_generate_raw_to_koopa(&raw, &program);
-  if (eno != KOOPA_EC_SUCCESS) {
-    std::cout << "generate raw to koopa error: " << (int)eno << std::endl;
-    return 0;
-  }
-  //std::cout << "generate raw to koopa success" << std::endl;
-  //fopen(output, "w");
-  koopa_dump_to_file(program, output);
-  koopa_delete_program(program);
+  // std::cout << "generate raw to koopa success" << std::endl;
+  // fopen(output, "w");
+  if (std::string(mode) == "-koopa") {
+    koopa_program_t program;
+    // std::cout << "build koopa success" << std::endl;
+    koopa_error_code_t eno = koopa_generate_raw_to_koopa(&raw, &program);
+    if (eno != KOOPA_EC_SUCCESS) {
+      std::cout << "generate raw to koopa error: " << (int)eno << std::endl;
+      return 0;
+    }
+    koopa_dump_to_file(program, output);
+    koopa_delete_program(program);
+  } else
+    riscv_dump_to_file(raw, output);
   return 0;
 }

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef AST_H
+#define AST_H
 
 #include <memory>
 #include <string>
@@ -73,3 +74,6 @@ class NumberAST : public BaseAST {
   std::string to_string() const override;
   void* to_koopa() const override;
 };
+
+
+#endif // AST_H
