@@ -6,6 +6,7 @@
 #include <string>
 
 #include "AST/AST.h"
+#include "RISCV/riscv.h"
 #include "koopa.h"
 
 // 声明 lexer 的输入, 以及 parser 函数
@@ -49,6 +50,6 @@ int main(int argc, const char *argv[]) {
     koopa_dump_to_file(program, output);
     koopa_delete_program(program);
   } else
-    riscv_dump_to_file(raw, output);
+    raw_dump_to_riscv(raw, output);
   return 0;
 }
