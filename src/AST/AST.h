@@ -10,7 +10,6 @@
 class BaseAST {
  public:
   virtual ~BaseAST() = default;
-  virtual std::string to_string() const = 0;
   virtual void* to_koopa() const = 0;
 };
 
@@ -20,7 +19,6 @@ class CompUnitAST : public BaseAST {
 
   CompUnitAST(std::unique_ptr<BaseAST>& func_def);
 
-  std::string to_string() const override;
   void* to_koopa() const override;
 };
 
@@ -33,7 +31,6 @@ class FuncDefAST : public BaseAST {
   FuncDefAST(std::unique_ptr<BaseAST>& func_type, const char* ident,
              std::unique_ptr<BaseAST>& block);
 
-  std::string to_string() const override;
   void* to_koopa() const override;
 };
 
@@ -41,39 +38,55 @@ class FuncTypeAST : public BaseAST {
  public:
   std::string type;
   FuncTypeAST(const char* type);
-  std::string to_string() const override;
   void* to_koopa() const override;
 };
 
 class BlockAST : public BaseAST {
  public:
   std::unique_ptr<BaseAST> stmt;
-
   BlockAST(std::unique_ptr<BaseAST>& stmt);
-
-  std::string to_string() const override;
   void* to_koopa() const override;
 };
 
 class StmtAST : public BaseAST {
  public:
-  std::unique_ptr<BaseAST> ret_num;
+  std::unique_ptr<BaseAST> exp;
+  StmtAST(std::unique_ptr<BaseAST>& exp);
+  void* to_koopa() const override;
+};
 
-  StmtAST(std::unique_ptr<BaseAST>& ret_num);
+class ExpAST : public BaseAST {
+ public:
+  std::unique_ptr<BaseAST> unary_exp;
+  ExpAST(std::unique_ptr<BaseAST>& unary_exp);
+  void* to_koopa() const override;
+};
 
-  std::string to_string() const override;
+class PrimaryExpAST : public BaseAST {
+  public:
+  std::unique_ptr<BaseAST> exp;
+  PrimaryExpAST(std::unique_ptr<BaseAST>& exp);
+  void* to_koopa() const override;
+};
+
+class UnaryExpAST : public BaseAST {
+ public:
+ enum {
+    Exp,
+    Op
+  }type;
+  std::string op;
+  std::unique_ptr<BaseAST> exp;
+  UnaryExpAST(std::unique_ptr<BaseAST>& exp);
+  UnaryExpAST(const char* op, std::unique_ptr<BaseAST>& exp);
   void* to_koopa() const override;
 };
 
 class NumberAST : public BaseAST {
  public:
   int val;
-
   NumberAST(int val);
-
-  std::string to_string() const override;
   void* to_koopa() const override;
 };
 
-
-#endif // AST_H
+#endif  // AST_H

@@ -4,10 +4,6 @@
 CompUnitAST::CompUnitAST(std::unique_ptr<BaseAST>& func_def)
     : func_def(std::move(func_def)) {}
 
-std::string CompUnitAST::to_string() const {
-  return "CompUnitAST { " + func_def->to_string() + " }";
-}
-
 void* CompUnitAST::to_koopa() const {
   std::vector<const void*> funcs{func_def->to_koopa()};
 
@@ -22,11 +18,6 @@ void* CompUnitAST::to_koopa() const {
 FuncDefAST::FuncDefAST(std::unique_ptr<BaseAST>& func_type, const char* ident,
                        std::unique_ptr<BaseAST>& block)
     : func_type(std::move(func_type)), ident(ident), block(std::move(block)) {}
-
-std::string FuncDefAST::to_string() const {
-  return "FuncDefAST { " + func_type->to_string() + ", " + ident + ", " +
-         block->to_string() + " }";
-}
 
 void* FuncDefAST::to_koopa() const {
   koopa_raw_function_data_t* ret = new koopa_raw_function_data_t();
@@ -53,10 +44,6 @@ void* FuncDefAST::to_koopa() const {
 // FuncTypeAST
 FuncTypeAST::FuncTypeAST(const char* type) : type(type) {}
 
-std::string FuncTypeAST::to_string() const {
-  return "FuncTypeAST { " + type + " }";
-}
-
 void* FuncTypeAST::to_koopa() const {
   if (type == "int") return (void*)type_kind(KOOPA_RTT_INT32);
   return nullptr;  // not implemented
@@ -64,10 +51,6 @@ void* FuncTypeAST::to_koopa() const {
 
 // BlockAST
 BlockAST::BlockAST(std::unique_ptr<BaseAST>& stmt) : stmt(std::move(stmt)) {}
-
-std::string BlockAST::to_string() const {
-  return "BlockAST { " + stmt->to_string() + " }";
-}
 
 void* BlockAST::to_koopa() const {
   koopa_raw_basic_block_data_t* ret = new koopa_raw_basic_block_data_t();
@@ -82,12 +65,7 @@ void* BlockAST::to_koopa() const {
 }
 
 // StmtAST
-StmtAST::StmtAST(std::unique_ptr<BaseAST>& ret_num)
-    : ret_num(std::move(ret_num)) {}
-
-std::string StmtAST::to_string() const {
-  return "StmtAST { return, " + ret_num->to_string() + " }";
-}
+StmtAST::StmtAST(std::unique_ptr<BaseAST>& exp) : exp(std::move(exp)) {}
 
 void* StmtAST::to_koopa() const {
   koopa_raw_value_data* ret = new koopa_raw_value_data();
@@ -95,16 +73,62 @@ void* StmtAST::to_koopa() const {
   ret->name = nullptr;
   ret->used_by = slice(KOOPA_RSIK_VALUE);
   ret->kind.tag = KOOPA_RVT_RETURN;
-  ret->kind.data.ret.value = (const koopa_raw_value_data*)ret_num->to_koopa();
+  ret->kind.data.ret.value = (const koopa_raw_value_data*)exp->to_koopa();
   return ret;
+}
+
+// ExpAST
+ExpAST::ExpAST(std::unique_ptr<BaseAST>& unary_exp)
+    : unary_exp(std::move(unary_exp)) {}
+
+void* ExpAST::to_koopa() const { return unary_exp->to_koopa(); }
+
+// PrimaryExpAST
+PrimaryExpAST::PrimaryExpAST(std::unique_ptr<BaseAST>& exp) : exp(std::move(exp)) {}
+
+void* PrimaryExpAST::to_koopa() const { return exp->to_koopa(); }
+
+// UnaryExpAST
+UnaryExpAST::UnaryExpAST(std::unique_ptr<BaseAST>& exp)
+    : exp(std::move(exp)) {type = Exp;}
+
+UnaryExpAST::UnaryExpAST(const char* op, std::unique_ptr<BaseAST>& exp)
+    : op(op), exp(std::move(exp)) {type = Op;}
+
+void* UnaryExpAST::to_koopa() const {
+  if (type == Exp) return exp->to_koopa();
+  if (op == "+") {
+    koopa_raw_value_data* ret = new koopa_raw_value_data();
+    ret->ty = type_kind(KOOPA_RTT_INT32);
+    ret->name = nullptr;
+    ret->used_by = slice(KOOPA_RSIK_VALUE);
+    ret->kind.tag = KOOPA_RVT_INTEGER;
+    ret->kind.data.integer.value = (((const koopa_raw_value_data*)exp->to_koopa())->kind.data.integer.value);
+    return ret;
+  }
+  if (op == "-") {
+    koopa_raw_value_data* ret = new koopa_raw_value_data();
+    ret->ty = type_kind(KOOPA_RTT_INT32);
+    ret->name = nullptr;
+    ret->used_by = slice(KOOPA_RSIK_VALUE);
+    ret->kind.tag = KOOPA_RVT_INTEGER;
+    ret->kind.data.integer.value = -(((const koopa_raw_value_data*)exp->to_koopa())->kind.data.integer.value);
+    return ret;
+  }
+  if (op == "!") {
+    koopa_raw_value_data* ret = new koopa_raw_value_data();
+    ret->ty = type_kind(KOOPA_RTT_INT32);
+    ret->name = nullptr;
+    ret->used_by = slice(KOOPA_RSIK_VALUE);
+    ret->kind.tag = KOOPA_RVT_INTEGER;
+    ret->kind.data.integer.value = !(((const koopa_raw_value_data*)exp->to_koopa())->kind.data.integer.value);
+    return ret;
+  }
+  return nullptr;  // not implemented
 }
 
 // NumberAST
 NumberAST::NumberAST(int val) : val(val) {}
-
-std::string NumberAST::to_string() const {
-  return "NumberAST { int " + std::to_string(val) + " }";
-}
 
 void* NumberAST::to_koopa() const {
   koopa_raw_value_data* ret = new koopa_raw_value_data();
