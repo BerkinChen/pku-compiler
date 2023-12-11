@@ -103,3 +103,16 @@ class BaseAST {
 其余的派生类根据不同的需要实现对应的多态函数
 
 生成RISCV的部分等逻辑和比较表达式完成后一起修改
+
+### 逻辑表达式
+AST和算数表达式类似，修改sysy.l的文件，添加对于逻辑运算符的识别
+```flex
+RelOP         [<>]=?
+EqOP          [!=]=
+"&&"            { yylval.str_val = new string(yytext); return AND; }
+"||"            { yylval.str_val = new string(yytext); return OR; }
+
+{RelOP}         { yylval.str_val = new string(yytext); return RELOP; }
+{EqOP}          { yylval.str_val = new string(yytext); return EQOP; }
+```
+除此之外，由于Koopa IR不支持逻辑运算，LAnd和LOr在运算时会对两边的表达式进行ne 0的操作，将其转换为逻辑运算

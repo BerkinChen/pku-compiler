@@ -49,7 +49,7 @@ int main(int argc, const char *argv[]) {
     koopa_dump_to_file(program, output);
     koopa_delete_program(program);
   } else
-    raw_dump_to_riscv(raw, output);
+    //raw_dump_to_riscv(raw, output);
     /*
   koopa_program_t program;
   koopa_error_code_t ret = koopa_parse_from_file(output, &program);

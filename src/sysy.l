@@ -29,6 +29,9 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 
 /* 运算符 */
 
+RelOP         [<>]=?
+EqOP          [!=]=
+
 %%
 
 {WhiteSpace}    { /* 忽略, 不做任何操作 */ }
@@ -38,8 +41,13 @@ Hexadecimal   0[xX][0-9a-fA-F]+
 "int"           { return INT; }
 "return"        { return RETURN; }
 
+"&&"            { yylval.str_val = new string(yytext); return AND; }
+"||"            { yylval.str_val = new string(yytext); return OR; }
+
 {Identifier}    { yylval.str_val = new string(yytext); return IDENT; }
 
+{RelOP}         { yylval.str_val = new string(yytext); return RELOP; }
+{EqOP}          { yylval.str_val = new string(yytext); return EQOP; }
 
 {Decimal}       { yylval.int_val = strtol(yytext, nullptr, 0); return INT_CONST; }
 {Octal}         { yylval.int_val = strtol(yytext, nullptr, 0); return INT_CONST; }

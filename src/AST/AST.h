@@ -116,6 +116,61 @@ class MulExpAST : public BaseAST {
                  std::vector<const void*>& inst_buf) const override;
 };
 
+class RelExpAST : public BaseAST {
+ public:
+  enum { Exp, Op } type;
+  std::string op;
+  std::unique_ptr<BaseAST> rel_exp;
+  std::unique_ptr<BaseAST> add_exp;
+  RelExpAST(std::unique_ptr<BaseAST>& add_exp);
+  RelExpAST(const char* op, std::unique_ptr<BaseAST>& rel_exp,
+            std::unique_ptr<BaseAST>& add_exp);
+  void* to_koopa(koopa_raw_slice_t parent,
+                 std::vector<const void*>& inst_buf) const override;
+};
+
+class EqExpAST : public BaseAST {
+ public:
+  enum { Exp, Op } type;
+  std::string op;
+  std::unique_ptr<BaseAST> eq_exp;
+  std::unique_ptr<BaseAST> rel_exp;
+  EqExpAST(std::unique_ptr<BaseAST>& rel_exp);
+  EqExpAST(const char* op, std::unique_ptr<BaseAST>& eq_exp,
+           std::unique_ptr<BaseAST>& rel_exp);
+  void* to_koopa(koopa_raw_slice_t parent,
+                 std::vector<const void*>& inst_buf) const override;
+};
+
+class LAndExpAST : public BaseAST {
+ public:
+  enum { Exp, Op } type;
+  std::string op;
+  std::unique_ptr<BaseAST> and_exp;
+  std::unique_ptr<BaseAST> eq_exp;
+  LAndExpAST(std::unique_ptr<BaseAST>& eq_exp);
+  LAndExpAST(const char* op, std::unique_ptr<BaseAST>& and_exp,
+             std::unique_ptr<BaseAST>& eq_exp);
+  void* make_bool(koopa_raw_slice_t parent,
+                  std::vector<const void*>& inst_buf, koopa_raw_value_t exp) const;
+  void* to_koopa(koopa_raw_slice_t parent,
+                 std::vector<const void*>& inst_buf) const override;
+};
+
+class LOrExpAST : public BaseAST {
+ public:
+  enum { Exp, Op } type;
+  std::string op;
+  std::unique_ptr<BaseAST> or_exp;
+  std::unique_ptr<BaseAST> and_exp;
+  LOrExpAST(std::unique_ptr<BaseAST>& and_exp);
+  LOrExpAST(const char* op, std::unique_ptr<BaseAST>& or_exp,
+            std::unique_ptr<BaseAST>& and_exp);
+  void* make_bool(koopa_raw_slice_t parent, std::vector<const void*>& inst_buf,
+                  koopa_raw_value_t exp) const;
+  void* to_koopa(koopa_raw_slice_t parent,
+                 std::vector<const void*>& inst_buf) const override;
+};
 class NumberAST : public BaseAST {
  public:
   int val;
