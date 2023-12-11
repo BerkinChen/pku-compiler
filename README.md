@@ -81,4 +81,25 @@ koopa_raw_type_t type_kind(koopa_raw_type_tag_t tag);
 
 ## Lv3
 ### 一元表达式
-添加了一元表达式的AST，在处理一元表达式的AST转换为raw program时，对于+，-，！等一元运算直接在编译时进行处理，不生成额外的IR
+添加了一元表达式的AST，在处理一元表达式的AST转换为raw program时，对于+，-，！等一元运算直接在编译时进行处理，不生成额外的IR，由于没有产生新的IR，所以生成RISCV的部分也不需要进行修改
+
+### 算数表达式
+根据语法添加对应的AST，修改生成IR的函数，由于要用到used_by，所以需要对函数添加parent参数，又由于现在每一个基本块生成的指令不止一条，所以需要增加一个存放指令的vector，随着函数传递下去。对BaseAST做出以下修改
+```c++
+class BaseAST {
+ public:
+  virtual ~BaseAST() = default;
+  virtual void* to_koopa() const { return nullptr; }
+  virtual void* to_koopa(std::vector<const void*>& inst_buf) const {
+    return nullptr;
+  }
+  virtual void* to_koopa(koopa_raw_slice_t parent) const { return nullptr; }
+  virtual void* to_koopa(koopa_raw_slice_t parent,
+                         std::vector<const void*>& inst_buf) const {
+    return nullptr;
+  }
+};
+```
+其余的派生类根据不同的需要实现对应的多态函数
+
+生成RISCV的部分等逻辑和比较表达式完成后一起修改
