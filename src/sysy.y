@@ -38,11 +38,12 @@ using namespace std;
 // lexer 返回的所有 token 种类的声明
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
 %token INT RETURN
-%token <str_val> IDENT UNARYOP
+%token <str_val> IDENT
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <ast_val> FuncDef FuncType Block Stmt Exp PrimaryExp UnaryExp Number
+%type <ast_val> FuncDef FuncType Block Stmt Exp PrimaryExp UnaryExp AddExp MulExp Number
+%type <str_val> UNARYOP MULOP ADDOP
 
 %%
 
@@ -87,9 +88,9 @@ Stmt
 
 
 Exp
-  : UnaryExp {
-    auto unaryexp = std::unique_ptr<BaseAST>($1);
-    $$ = new ExpAST(unaryexp);
+  : AddExp {
+    auto addexp = std::unique_ptr<BaseAST>($1);
+    $$ = new ExpAST(addexp);
   }
   ;
 
@@ -113,6 +114,60 @@ UnaryExp
     auto unaryop = std::unique_ptr<std::string>($1);
     auto unaryexp = std::unique_ptr<BaseAST>($2);
     $$ = new UnaryExpAST(unaryop->c_str(), unaryexp);
+  }
+  ;
+
+UNARYOP :
+  '-' {
+    $$ = new std::string("-");
+  }| '!' {
+    $$ = new std::string("!");
+  }| '+' {
+    $$ = new std::string("+");
+  }
+  ;
+
+MulExp
+  : UnaryExp {
+    auto unaryexp = std::unique_ptr<BaseAST>($1);
+    $$ = new MulExpAST(unaryexp);
+  }
+  | MulExp MULOP UnaryExp {
+    auto mulexp = std::unique_ptr<BaseAST>($1);
+    auto mulop = std::unique_ptr<std::string>($2);
+    auto unaryexp = std::unique_ptr<BaseAST>($3);
+    $$ = new MulExpAST(mulop->c_str(), mulexp, unaryexp);
+  }
+  ;
+
+MULOP : 
+  '*' {
+    $$ = new std::string("*");
+  }| '/' {
+    $$ = new std::string("/");
+  }| '%' {
+    $$ = new std::string("%");
+  }
+  ;
+
+AddExp
+  : MulExp {
+    auto mulexp = std::unique_ptr<BaseAST>($1);
+    $$ = new AddExpAST(mulexp);
+  }
+  | AddExp ADDOP MulExp {
+    auto addexp = std::unique_ptr<BaseAST>($1);
+    auto addop = std::unique_ptr<std::string>($2);
+    auto mulexp = std::unique_ptr<BaseAST>($3);
+    $$ = new AddExpAST(addop->c_str(), addexp, mulexp);
+  }
+  ;
+
+ADDOP :
+  '+' {
+    $$ = new std::string("+");
+  }| '-' {
+    $$ = new std::string("-");
   }
   ;
 

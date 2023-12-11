@@ -35,13 +35,12 @@ int main(int argc, const char *argv[]) {
   assert(!ret);
   // std::cout << ast->to_string() << std::endl;
   // 输出到输出文件
-  koopa_raw_program_t raw = *(koopa_raw_program_t *)ast->to_koopa();
-  ast.release();
-  // std::cout << "generate raw to koopa success" << std::endl;
-  // fopen(output, "w");
+  std::unique_ptr<CompUnitAST> comp_ast(
+      dynamic_cast<CompUnitAST *>(ast.release()));
+  koopa_raw_program_t raw = *(koopa_raw_program_t *)comp_ast->to_koopa();
+
   if (std::string(mode) == "-koopa") {
     koopa_program_t program;
-    // std::cout << "build koopa success" << std::endl;
     koopa_error_code_t eno = koopa_generate_raw_to_koopa(&raw, &program);
     if (eno != KOOPA_EC_SUCCESS) {
       std::cout << "generate raw to koopa error: " << (int)eno << std::endl;
@@ -51,5 +50,26 @@ int main(int argc, const char *argv[]) {
     koopa_delete_program(program);
   } else
     raw_dump_to_riscv(raw, output);
+    /*
+  koopa_program_t program;
+  koopa_error_code_t ret = koopa_parse_from_file(output, &program);
+  assert(ret == KOOPA_EC_SUCCESS);  // 确保解析时没有出错
+  koopa_raw_program_builder_t builder = koopa_new_raw_program_builder();
+  koopa_raw_program_t raw = koopa_build_raw_program(builder, program);
+  koopa_delete_program(program);
+
+  auto ptr = raw.funcs.buffer[0];
+  auto func = (koopa_raw_function_data_t *)ptr;
+  auto bb = func->bbs.buffer[0];
+  auto bb_data = (koopa_raw_basic_block_data_t *)bb;
+  std::cout << bb_data->insts.len << std::endl;
+  auto inst = bb_data->insts.buffer[0];
+  auto inst_data = (koopa_raw_value_data_t *)inst;
+  auto used_by = inst_data->used_by.buffer[0];
+  auto used_by_data = (koopa_raw_value_data_t *)used_by;
+  std::cout << inst_data->kind.data.binary.rhs << std::endl;
+  std::cout << used_by_data->kind.data.binary.op << std::endl;
+  // koopa_delete_raw_program_builder(builder);
+*/
   return 0;
 }

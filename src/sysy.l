@@ -28,7 +28,6 @@ Octal         0[0-7]*
 Hexadecimal   0[xX][0-9a-fA-F]+
 
 /* 运算符 */
-UnaryOp       [-+!]
 
 %%
 
@@ -40,7 +39,7 @@ UnaryOp       [-+!]
 "return"        { return RETURN; }
 
 {Identifier}    { yylval.str_val = new string(yytext); return IDENT; }
-{UnaryOp}       { yylval.str_val = new string(yytext); return UNARYOP; }
+
 
 {Decimal}       { yylval.int_val = strtol(yytext, nullptr, 0); return INT_CONST; }
 {Octal}         { yylval.int_val = strtol(yytext, nullptr, 0); return INT_CONST; }

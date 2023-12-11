@@ -10,7 +10,15 @@
 class BaseAST {
  public:
   virtual ~BaseAST() = default;
-  virtual void* to_koopa() const = 0;
+  virtual void* to_koopa() const { return nullptr; }
+  virtual void* to_koopa(std::vector<const void*>& inst_buf) const {
+    return nullptr;
+  }
+  virtual void* to_koopa(koopa_raw_slice_t parent) const { return nullptr; }
+  virtual void* to_koopa(koopa_raw_slice_t parent,
+                         std::vector<const void*>& inst_buf) const {
+    return nullptr;
+  }
 };
 
 class CompUnitAST : public BaseAST {
@@ -52,41 +60,68 @@ class StmtAST : public BaseAST {
  public:
   std::unique_ptr<BaseAST> exp;
   StmtAST(std::unique_ptr<BaseAST>& exp);
-  void* to_koopa() const override;
+  void* to_koopa(std::vector<const void*>& inst_buf) const override;
 };
 
 class ExpAST : public BaseAST {
  public:
-  std::unique_ptr<BaseAST> unary_exp;
-  ExpAST(std::unique_ptr<BaseAST>& unary_exp);
-  void* to_koopa() const override;
+  std::unique_ptr<BaseAST> add_exp;
+  ExpAST(std::unique_ptr<BaseAST>& add_exp);
+  void* to_koopa(koopa_raw_slice_t parent,
+                 std::vector<const void*>& inst_buf) const override;
 };
 
 class PrimaryExpAST : public BaseAST {
-  public:
+ public:
   std::unique_ptr<BaseAST> exp;
   PrimaryExpAST(std::unique_ptr<BaseAST>& exp);
-  void* to_koopa() const override;
+  void* to_koopa(koopa_raw_slice_t parent,
+                 std::vector<const void*>& inst_buf) const override;
 };
 
 class UnaryExpAST : public BaseAST {
  public:
- enum {
-    Exp,
-    Op
-  }type;
+  enum { Exp, Op } type;
   std::string op;
   std::unique_ptr<BaseAST> exp;
   UnaryExpAST(std::unique_ptr<BaseAST>& exp);
   UnaryExpAST(const char* op, std::unique_ptr<BaseAST>& exp);
-  void* to_koopa() const override;
+  void* to_koopa(koopa_raw_slice_t parent,
+                 std::vector<const void*>& inst_buf) const override;
+};
+
+class AddExpAST : public BaseAST {
+ public:
+  enum { Exp, Op } type;
+  std::string op;
+  std::unique_ptr<BaseAST> add_exp;
+  std::unique_ptr<BaseAST> mul_exp;
+  AddExpAST(std::unique_ptr<BaseAST>& add_exp);
+  AddExpAST(const char* op, std::unique_ptr<BaseAST>& add_exp,
+            std::unique_ptr<BaseAST>& mul_exp);
+  void* to_koopa(koopa_raw_slice_t parent,
+                 std::vector<const void*>& inst_buf) const override;
+};
+
+class MulExpAST : public BaseAST {
+ public:
+  enum { Exp, Op } type;
+  std::string op;
+  std::unique_ptr<BaseAST> mul_exp;
+  std::unique_ptr<BaseAST> unary_exp;
+  MulExpAST(std::unique_ptr<BaseAST>& unary_exp);
+  MulExpAST(const char* op, std::unique_ptr<BaseAST>& mul_exp,
+            std::unique_ptr<BaseAST>& unary_exp);
+  void* to_koopa(koopa_raw_slice_t parent,
+                 std::vector<const void*>& inst_buf) const override;
 };
 
 class NumberAST : public BaseAST {
  public:
   int val;
   NumberAST(int val);
-  void* to_koopa() const override;
+  void* to_koopa(koopa_raw_slice_t parent,
+                 std::vector<const void*>& inst_buf) const override;
 };
 
 #endif  // AST_H

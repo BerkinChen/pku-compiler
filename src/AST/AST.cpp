@@ -58,7 +58,8 @@ void* BlockAST::to_koopa() const {
   ret->params = slice(KOOPA_RSIK_VALUE);
   ret->used_by = slice(KOOPA_RSIK_VALUE);
 
-  std::vector<const void*> stmts{stmt->to_koopa()};
+  std::vector<const void*> stmts;
+  stmt->to_koopa(stmts);
   ret->insts = slice(stmts, KOOPA_RSIK_VALUE);
 
   return ret;
@@ -67,74 +68,148 @@ void* BlockAST::to_koopa() const {
 // StmtAST
 StmtAST::StmtAST(std::unique_ptr<BaseAST>& exp) : exp(std::move(exp)) {}
 
-void* StmtAST::to_koopa() const {
+void* StmtAST::to_koopa(std::vector<const void*>& inst_buf) const {
   koopa_raw_value_data* ret = new koopa_raw_value_data();
+  koopa_raw_slice_t used_by = slice(ret, KOOPA_RSIK_VALUE);
   ret->ty = type_kind(KOOPA_RTT_UNIT);
   ret->name = nullptr;
   ret->used_by = slice(KOOPA_RSIK_VALUE);
   ret->kind.tag = KOOPA_RVT_RETURN;
-  ret->kind.data.ret.value = (const koopa_raw_value_data*)exp->to_koopa();
+  ret->kind.data.ret.value =
+      (const koopa_raw_value_data*)exp->to_koopa(used_by, inst_buf);
+  inst_buf.push_back(ret);
   return ret;
 }
 
 // ExpAST
-ExpAST::ExpAST(std::unique_ptr<BaseAST>& unary_exp)
-    : unary_exp(std::move(unary_exp)) {}
+ExpAST::ExpAST(std::unique_ptr<BaseAST>& add_exp)
+    : add_exp(std::move(add_exp)) {}
 
-void* ExpAST::to_koopa() const { return unary_exp->to_koopa(); }
+void* ExpAST::to_koopa(koopa_raw_slice_t parent,
+                       std::vector<const void*>& inst_buf) const {
+  return add_exp->to_koopa(parent, inst_buf);
+}
 
 // PrimaryExpAST
-PrimaryExpAST::PrimaryExpAST(std::unique_ptr<BaseAST>& exp) : exp(std::move(exp)) {}
+PrimaryExpAST::PrimaryExpAST(std::unique_ptr<BaseAST>& exp)
+    : exp(std::move(exp)) {}
 
-void* PrimaryExpAST::to_koopa() const { return exp->to_koopa(); }
+void* PrimaryExpAST::to_koopa(koopa_raw_slice_t parent,
+                              std::vector<const void*>& inst_buf) const {
+  return exp->to_koopa(parent, inst_buf);
+}
 
 // UnaryExpAST
-UnaryExpAST::UnaryExpAST(std::unique_ptr<BaseAST>& exp)
-    : exp(std::move(exp)) {type = Exp;}
+UnaryExpAST::UnaryExpAST(std::unique_ptr<BaseAST>& exp) : exp(std::move(exp)) {
+  type = Exp;
+}
 
 UnaryExpAST::UnaryExpAST(const char* op, std::unique_ptr<BaseAST>& exp)
-    : op(op), exp(std::move(exp)) {type = Op;}
+    : op(op), exp(std::move(exp)) {
+  type = Op;
+}
 
-void* UnaryExpAST::to_koopa() const {
-  if (type == Exp) return exp->to_koopa();
-  if (op == "+") {
-    koopa_raw_value_data* ret = new koopa_raw_value_data();
-    ret->ty = type_kind(KOOPA_RTT_INT32);
-    ret->name = nullptr;
-    ret->used_by = slice(KOOPA_RSIK_VALUE);
-    ret->kind.tag = KOOPA_RVT_INTEGER;
-    ret->kind.data.integer.value = (((const koopa_raw_value_data*)exp->to_koopa())->kind.data.integer.value);
-    return ret;
-  }
+void* UnaryExpAST::to_koopa(koopa_raw_slice_t parent,
+                            std::vector<const void*>& inst_buf) const {
+  if (type == Exp || op == "+") return exp->to_koopa(parent, inst_buf);
+  koopa_raw_value_data* ret = new koopa_raw_value_data();
+  ret->ty = type_kind(KOOPA_RTT_INT32);
+  ret->name = nullptr;
+  ret->used_by = parent;
+  ret->kind.tag = KOOPA_RVT_INTEGER;
   if (op == "-") {
-    koopa_raw_value_data* ret = new koopa_raw_value_data();
-    ret->ty = type_kind(KOOPA_RTT_INT32);
-    ret->name = nullptr;
-    ret->used_by = slice(KOOPA_RSIK_VALUE);
-    ret->kind.tag = KOOPA_RVT_INTEGER;
-    ret->kind.data.integer.value = -(((const koopa_raw_value_data*)exp->to_koopa())->kind.data.integer.value);
-    return ret;
+    ret->kind.data.integer.value =
+        -(((const koopa_raw_value_data*)exp->to_koopa(parent, inst_buf))
+              ->kind.data.integer.value);
   }
   if (op == "!") {
-    koopa_raw_value_data* ret = new koopa_raw_value_data();
-    ret->ty = type_kind(KOOPA_RTT_INT32);
-    ret->name = nullptr;
-    ret->used_by = slice(KOOPA_RSIK_VALUE);
-    ret->kind.tag = KOOPA_RVT_INTEGER;
-    ret->kind.data.integer.value = !(((const koopa_raw_value_data*)exp->to_koopa())->kind.data.integer.value);
-    return ret;
+    ret->kind.data.integer.value =
+        !(((const koopa_raw_value_data*)exp->to_koopa(parent, inst_buf))
+              ->kind.data.integer.value);
   }
-  return nullptr;  // not implemented
+  return ret;
+}
+
+// AddExpAST
+AddExpAST::AddExpAST(std::unique_ptr<BaseAST>& mul_exp)
+    : mul_exp(std::move(mul_exp)) {
+  type = Exp;
+}
+
+AddExpAST::AddExpAST(const char* op, std::unique_ptr<BaseAST>& add_exp,
+                     std::unique_ptr<BaseAST>& mul_exp)
+    : op(op), add_exp(std::move(add_exp)), mul_exp(std::move(mul_exp)) {
+  type = Op;
+}
+
+void* AddExpAST::to_koopa(koopa_raw_slice_t parent,
+                          std::vector<const void*>& inst_buf) const {
+  if (type == Exp) return mul_exp->to_koopa(parent, inst_buf);
+  koopa_raw_value_data* ret = new koopa_raw_value_data();
+  koopa_raw_slice_t used_by = slice(ret, KOOPA_RSIK_VALUE);
+  ret->ty = type_kind(KOOPA_RTT_INT32);
+  ret->name = nullptr;
+  ret->used_by = parent;
+  ret->kind.tag = KOOPA_RVT_BINARY;
+  auto &binary = ret->kind.data.binary;
+  if (op == "+") {
+    binary.op = KOOPA_RBO_ADD;
+  }
+  if (op == "-") {
+    binary.op = KOOPA_RBO_SUB;
+  }
+  binary.lhs = (koopa_raw_value_t)add_exp->to_koopa(used_by, inst_buf);
+  binary.rhs = (koopa_raw_value_t)mul_exp->to_koopa(used_by, inst_buf);
+  inst_buf.push_back(ret);
+  return ret;
+}
+
+// MulExpAST
+MulExpAST::MulExpAST(std::unique_ptr<BaseAST>& unary_exp)
+    : unary_exp(std::move(unary_exp)) {
+  type = Exp;
+}
+
+MulExpAST::MulExpAST(const char* op, std::unique_ptr<BaseAST>& mul_exp,
+                     std::unique_ptr<BaseAST>& unary_exp)
+    : op(op), mul_exp(std::move(mul_exp)), unary_exp(std::move(unary_exp)) {
+  type = Op;
+}
+
+void* MulExpAST::to_koopa(koopa_raw_slice_t parent,
+                          std::vector<const void*>& inst_buf) const {
+  if (type == Exp) return unary_exp->to_koopa(parent, inst_buf);
+  koopa_raw_value_data* ret = new koopa_raw_value_data();
+  koopa_raw_slice_t used_by = slice(ret, KOOPA_RSIK_VALUE);
+  ret->ty = type_kind(KOOPA_RTT_INT32);
+  ret->name = nullptr;
+  ret->used_by = parent;
+  ret->kind.tag = KOOPA_RVT_BINARY;
+  auto &binary = ret->kind.data.binary;
+  if (op == "*") {
+    binary.op = KOOPA_RBO_MUL;
+  }
+  if (op == "/") {
+    binary.op = KOOPA_RBO_DIV;
+  }
+  if (op == "%") {
+    binary.op = KOOPA_RBO_MOD;
+  }
+  binary.lhs = (koopa_raw_value_t)mul_exp->to_koopa(used_by, inst_buf);
+  binary.rhs = (koopa_raw_value_t)unary_exp->to_koopa(used_by, inst_buf);
+  inst_buf.push_back(ret);
+  return ret;
 }
 
 // NumberAST
 NumberAST::NumberAST(int val) : val(val) {}
 
-void* NumberAST::to_koopa() const {
+void* NumberAST::to_koopa(koopa_raw_slice_t parent,
+                          std::vector<const void*>& inst_buf) const {
   koopa_raw_value_data* ret = new koopa_raw_value_data();
   ret->ty = type_kind(KOOPA_RTT_INT32);
   ret->name = nullptr;
-  ret->used_by = slice(KOOPA_RSIK_VALUE);
+  ret->used_by = parent;
   ret->kind.tag = KOOPA_RVT_INTEGER;
   ret->kind.data.integer.value = val;
   return ret;
