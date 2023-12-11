@@ -4,7 +4,7 @@
 [参考文档](https://pku-minic.github.io/online-doc/#/)
 
 - [x] lv1
-- [ ] lv2
+- [x] lv2
 - [ ] lv3
 - [ ] lv4
 - [ ] lv5
