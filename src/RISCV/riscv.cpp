@@ -2,16 +2,78 @@
 
 #include <cassert>
 #include <cstring>
-#include <fstream>
+#include <iostream>
 
-std::string raw_visit(const koopa_raw_program_t &raw) {
+void RISCV_Builder::Env::state_init() {
+  for (int i = 0; i < 8; ++i) {
+    register_state_map["a" + std::to_string(i)] = UNUSED;
+  }
+  for (int i = 0; i < 7; ++i) {
+    register_state_map["t" + std::to_string(i)] = UNUSED;
+  }
+}
+
+void RISCV_Builder::Env::state_free(std::string reg) {
+  register_state_map[reg] = UNUSED;
+}
+
+std::string RISCV_Builder::Env::register_check(koopa_raw_value_t raw) {
+  if (register_alloc_map.find(raw) != register_alloc_map.end()) {
+    return register_alloc_map[raw];
+  } else {
+    return "Null";
+  }
+}
+
+std::string RISCV_Builder::Env::register_alloc(koopa_raw_value_t raw) {
+  if (register_alloc_map.find(raw) != register_alloc_map.end()) {
+    return register_alloc_map[raw];
+  }
+  for (int i = 0; i < 7; ++i) {
+    if (register_state_map["t" + std::to_string(i)] == UNUSED) {
+      register_state_map["t" + std::to_string(i)] = USED;
+      register_alloc_map[raw] = "t" + std::to_string(i);
+      return "t" + std::to_string(i);
+    }
+  }
+  for (int i = 0; i < 8; ++i) {
+    if (register_state_map["a" + std::to_string(i)] == UNUSED) {
+      register_state_map["a" + std::to_string(i)] = USED;
+      register_alloc_map[raw] = "a" + std::to_string(i);
+      return "a" + std::to_string(i);
+    }
+  }
+  return "Null";
+}
+
+std::string RISCV_Builder::load_register(koopa_raw_value_t value,
+                                         std::string reg) {
+  std::string ret = "";
+  std::string rs1 = env.register_check(value);
+  if (rs1 != "Null") {
+    if (value->kind.tag == KOOPA_RVT_INTEGER) {
+      ret += "  li " + reg + ", " +
+             std::to_string(value->kind.data.integer.value) + "\n";
+    } else if (rs1 != reg) {
+      ret += "  mv " + reg + ", " + rs1 + "\n";
+    }
+  } else {
+    if (value->kind.tag == KOOPA_RVT_INTEGER) {
+      ret += "  li " + reg + ", " +
+             std::to_string(value->kind.data.integer.value) + "\n";
+    }
+  }
+  return ret;
+}
+
+std::string RISCV_Builder::raw_visit(const koopa_raw_program_t &raw) {
   std::string ret = "  .text\n  .globl main\n";
   // TODO: values
   ret += raw_visit(raw.funcs);
   return ret;
 }
 
-std::string raw_visit(const koopa_raw_slice_t &slice) {
+std::string RISCV_Builder::raw_visit(const koopa_raw_slice_t &slice) {
   std::string ret = "";
   for (size_t i = 0; i < slice.len; ++i) {
     auto ptr = slice.buffer[i];
@@ -35,7 +97,7 @@ std::string raw_visit(const koopa_raw_slice_t &slice) {
   return ret;
 }
 
-std::string raw_visit(const koopa_raw_function_t &func) {
+std::string RISCV_Builder::raw_visit(const koopa_raw_function_t &func) {
   // TODO: params
   // TODO: used_by
   char *name = new char[strlen(func->name) - 1];
@@ -45,7 +107,7 @@ std::string raw_visit(const koopa_raw_function_t &func) {
   return ret;
 }
 
-std::string raw_visit(const koopa_raw_basic_block_t &bb) {
+std::string RISCV_Builder::raw_visit(const koopa_raw_basic_block_t &bb) {
   // TODO: used_by
   // TODO: params
   std::string ret = "";
@@ -53,7 +115,7 @@ std::string raw_visit(const koopa_raw_basic_block_t &bb) {
   return ret;
 }
 
-std::string raw_visit(const koopa_raw_value_t &value) {
+std::string RISCV_Builder::raw_visit(const koopa_raw_value_t &value) {
   std::string ret = "";
   const auto &kind = value->kind;
   switch (kind.tag) {
@@ -61,7 +123,10 @@ std::string raw_visit(const koopa_raw_value_t &value) {
       ret += raw_visit(kind.data.ret);
       break;
     case KOOPA_RVT_INTEGER:
-      ret += raw_visit(kind.data.integer);
+      // ret += raw_visit(kind.data.integer);
+      break;
+    case KOOPA_RVT_BINARY:
+      ret += raw_visit(kind.data.binary);
       break;
     default:
       assert(false);
@@ -69,19 +134,93 @@ std::string raw_visit(const koopa_raw_value_t &value) {
   return ret;
 }
 
-std::string raw_visit(const koopa_raw_return_t &value_ret) {
-  std::string ret = "  li a0, " + raw_visit(value_ret.value) + "\n";
+std::string RISCV_Builder::raw_visit(const koopa_raw_return_t &ret_value) {
+  std::string ret = "";
+  ret += load_register(ret_value.value, "a0");
   ret += "  ret\n";
   return ret;
 }
 
-std::string raw_visit(const koopa_raw_integer_t &value_int) {
-  std::string ret = std::to_string(value_int.value);
+std::string RISCV_Builder::raw_visit(const koopa_raw_binary_t &b_value) {
+  std::string ret = "";
+  auto b_data = (koopa_raw_value_data_t *)b_value.lhs->used_by.buffer[0];
+  std::string rd = env.register_alloc(b_data);
+  std::string rs1;
+  if (b_value.lhs->kind.tag == KOOPA_RVT_INTEGER &&
+      b_value.lhs->kind.data.integer.value == 0) {
+    rs1 = "x0";
+  } else {
+    rs1 = rd;
+  }
+  std::string rs2;
+  if (b_value.rhs->kind.tag == KOOPA_RVT_INTEGER &&
+      b_value.rhs->kind.data.integer.value == 0) {
+    rs2 = "x0";
+  } else {
+    rs2 = env.register_alloc(b_value.rhs);
+    if (rs1 != "Null") {
+      ret += load_register(b_value.lhs, rs1);
+    }
+    if (rs2 != "Null") {
+      ret += load_register(b_value.rhs, rs2);
+    }
+    // env.state_free(rs1);
+    env.state_free(rs2);
+  }
+  switch (b_value.op) {
+    case KOOPA_RBO_ADD:
+      ret += "  add " + rd + ", " + rs1 + ", " + rs2 + "\n";
+      break;
+    case KOOPA_RBO_SUB:
+      ret += "  sub " + rd + ", " + rs1 + ", " + rs2 + "\n";
+      break;
+    case KOOPA_RBO_MUL:
+      ret += "  mul " + rd + ", " + rs1 + ", " + rs2 + "\n";
+      break;
+    case KOOPA_RBO_DIV:
+      ret += "  div " + rd + ", " + rs1 + ", " + rs2 + "\n";
+      break;
+    case KOOPA_RBO_MOD:
+      ret += "  rem " + rd + ", " + rs1 + ", " + rs2 + "\n";
+      break;
+    case KOOPA_RBO_AND:
+      ret += "  and " + rd + ", " + rs1 + ", " + rs2 + "\n";
+      break;
+    case KOOPA_RBO_OR:
+      ret += "  or " + rd + ", " + rs1 + ", " + rs2 + "\n";
+      break;
+    case KOOPA_RBO_EQ:
+      ret += "  xor " + rd + ", " + rs1 + ", " + rs2 + "\n";
+      ret += "  seqz " + rd + ", " + rd + "\n";
+      break;
+    case KOOPA_RBO_NOT_EQ:
+      ret += "  xor " + rd + ", " + rs1 + ", " + rs2 + "\n";
+      ret += "  snez " + rd + ", " + rd + "\n";
+      break;
+    case KOOPA_RBO_GT:
+      ret += "  sgt " + rd + ", " + rs1 + ", " + rs2 + "\n";
+      break;
+    case KOOPA_RBO_LT:
+      ret += "  slt " + rd + ", " + rs1 + ", " + rs2 + "\n";
+      break;
+    case KOOPA_RBO_GE:
+      ret += "  slt " + rd + ", " + rs1 + ", " + rs2 + "\n";
+      ret += "  seqz " + rd + ", " + rd + "\n";
+      break;
+    case KOOPA_RBO_LE:
+      ret += "  sgt " + rd + ", " + rs1 + ", " + rs2 + "\n";
+      ret += "  seqz " + rd + ", " + rd + "\n";
+      break;
+    default:
+      break;
+  }
   return ret;
 }
 
-void raw_dump_to_riscv(koopa_raw_program_t raw, const char *output) {
-  std::ofstream fout(output);
-  fout << raw_visit(raw);
-  fout.close();
+void RISCV_Builder::build(koopa_raw_program_t raw, const char *path) {
+  env.state_init();
+  std::string ret = raw_visit(raw);
+  std::ofstream out(path);
+  out << ret;
+  out.close();
 }

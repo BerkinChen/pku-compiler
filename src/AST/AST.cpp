@@ -113,20 +113,22 @@ void* UnaryExpAST::to_koopa(koopa_raw_slice_t parent,
                             std::vector<const void*>& inst_buf) const {
   if (type == Exp || op == "+") return exp->to_koopa(parent, inst_buf);
   koopa_raw_value_data* ret = new koopa_raw_value_data();
+  koopa_raw_slice_t used_by = slice(ret, KOOPA_RSIK_VALUE);
   ret->ty = type_kind(KOOPA_RTT_INT32);
   ret->name = nullptr;
   ret->used_by = parent;
-  ret->kind.tag = KOOPA_RVT_INTEGER;
+  ret->kind.tag = KOOPA_RVT_BINARY;
+  auto& binary = ret->kind.data.binary;
   if (op == "-") {
-    ret->kind.data.integer.value =
-        -(((const koopa_raw_value_data*)exp->to_koopa(parent, inst_buf))
-              ->kind.data.integer.value);
+    binary.op = KOOPA_RBO_SUB;
   }
   if (op == "!") {
-    ret->kind.data.integer.value =
-        !(((const koopa_raw_value_data*)exp->to_koopa(parent, inst_buf))
-              ->kind.data.integer.value);
+    binary.op = KOOPA_RBO_EQ;
   }
+  NumberAST zero(0);
+  binary.lhs = (koopa_raw_value_t)zero.to_koopa(used_by, inst_buf);
+  binary.rhs = (koopa_raw_value_t)exp->to_koopa(used_by, inst_buf);
+  inst_buf.push_back(ret);
   return ret;
 }
 
@@ -289,7 +291,7 @@ LAndExpAST::LAndExpAST(const char* op, std::unique_ptr<BaseAST>& and_exp,
 
 void* LAndExpAST::make_bool(koopa_raw_slice_t parent,
                             std::vector<const void*>& inst_buf,
-                            koopa_raw_value_t exp) const {
+                            const std::unique_ptr<BaseAST>& exp) const {
   koopa_raw_value_data* ret = new koopa_raw_value_data();
   koopa_raw_slice_t used_by = slice(ret, KOOPA_RSIK_VALUE);
   ret->ty = type_kind(KOOPA_RTT_INT32);
@@ -298,14 +300,9 @@ void* LAndExpAST::make_bool(koopa_raw_slice_t parent,
   ret->kind.tag = KOOPA_RVT_BINARY;
   auto& binary = ret->kind.data.binary;
   binary.op = KOOPA_RBO_NOT_EQ;
-  binary.lhs = exp;
-  koopa_raw_value_data* zero = new koopa_raw_value_data();
-  zero->ty = type_kind(KOOPA_RTT_INT32);
-  zero->name = nullptr;
-  zero->used_by = used_by;
-  zero->kind.tag = KOOPA_RVT_INTEGER;
-  zero->kind.data.integer.value = 0;
-  binary.rhs = (koopa_raw_value_t)zero;
+  binary.lhs = (koopa_raw_value_t)exp->to_koopa(used_by, inst_buf);
+  NumberAST zero(0);
+  binary.rhs = (koopa_raw_value_t)zero.to_koopa(used_by, inst_buf);
   inst_buf.push_back(ret);
   return ret;
 }
@@ -323,10 +320,8 @@ void* LAndExpAST::to_koopa(koopa_raw_slice_t parent,
   if (op == "&&") {
     binary.op = KOOPA_RBO_AND;
   }
-  binary.lhs = (koopa_raw_value_t)make_bool(used_by, inst_buf, (koopa_raw_value_t)and_exp->to_koopa(
-      used_by, inst_buf));
-  binary.rhs = (koopa_raw_value_t)make_bool(used_by, inst_buf, (koopa_raw_value_t)eq_exp->to_koopa(
-      used_by, inst_buf));
+  binary.lhs = (koopa_raw_value_t)make_bool(used_by, inst_buf, and_exp);
+  binary.rhs = (koopa_raw_value_t)make_bool(used_by, inst_buf, eq_exp);
   inst_buf.push_back(ret);
   return ret;
 }
@@ -345,7 +340,7 @@ LOrExpAST::LOrExpAST(const char* op, std::unique_ptr<BaseAST>& or_exp,
 
 void* LOrExpAST::make_bool(koopa_raw_slice_t parent,
                            std::vector<const void*>& inst_buf,
-                           koopa_raw_value_t exp) const {
+                           const std::unique_ptr<BaseAST>& exp) const {
   koopa_raw_value_data* ret = new koopa_raw_value_data();
   koopa_raw_slice_t used_by = slice(ret, KOOPA_RSIK_VALUE);
   ret->ty = type_kind(KOOPA_RTT_INT32);
@@ -354,14 +349,9 @@ void* LOrExpAST::make_bool(koopa_raw_slice_t parent,
   ret->kind.tag = KOOPA_RVT_BINARY;
   auto& binary = ret->kind.data.binary;
   binary.op = KOOPA_RBO_NOT_EQ;
-  binary.lhs = exp;
-  koopa_raw_value_data* zero = new koopa_raw_value_data();
-  zero->ty = type_kind(KOOPA_RTT_INT32);
-  zero->name = nullptr;
-  zero->used_by = used_by;
-  zero->kind.tag = KOOPA_RVT_INTEGER;
-  zero->kind.data.integer.value = 0;
-  binary.rhs = (koopa_raw_value_t)zero;
+  binary.lhs = (koopa_raw_value_t)exp->to_koopa(used_by, inst_buf);
+  NumberAST zero(0);
+  binary.rhs = (koopa_raw_value_t)zero.to_koopa(used_by, inst_buf);
   inst_buf.push_back(ret);
   return ret;
 }
@@ -379,10 +369,8 @@ void* LOrExpAST::to_koopa(koopa_raw_slice_t parent,
   if (op == "||") {
     binary.op = KOOPA_RBO_OR;
   }
-  binary.lhs = (koopa_raw_value_t)make_bool(used_by, inst_buf, (koopa_raw_value_t)or_exp->to_koopa(
-      used_by, inst_buf));
-  binary.rhs = (koopa_raw_value_t)make_bool(used_by, inst_buf, (koopa_raw_value_t)and_exp->to_koopa(
-      used_by, inst_buf));
+  binary.lhs = (koopa_raw_value_t)make_bool(used_by, inst_buf, or_exp);
+  binary.rhs = (koopa_raw_value_t)make_bool(used_by, inst_buf, and_exp);
   inst_buf.push_back(ret);
   return ret;
 }

@@ -5,7 +5,7 @@
 
 - [x] lv1
 - [x] lv2
-- [ ] lv3
+- [x] lv3
 - [ ] lv4
 - [ ] lv5
 - [ ] lv6
@@ -81,7 +81,9 @@ koopa_raw_type_t type_kind(koopa_raw_type_tag_t tag);
 
 ## Lv3
 ### 一元表达式
-添加了一元表达式的AST，在处理一元表达式的AST转换为raw program时，对于+，-，！等一元运算直接在编译时进行处理，不生成额外的IR，由于没有产生新的IR，所以生成RISCV的部分也不需要进行修改
+添加了一元表达式的AST，在处理一元表达式的AST转换为raw program时，对于+，不生成额外的IR，对于-，！等一元运算转换为对应的二元运算进行处理
+
+生成RISCV的部分等逻辑和比较表达式完成后一起修改
 
 ### 算数表达式
 根据语法添加对应的AST，修改生成IR的函数，由于要用到used_by，所以需要对函数添加parent参数，又由于现在每一个基本块生成的指令不止一条，所以需要增加一个存放指令的vector，随着函数传递下去。对BaseAST做出以下修改
@@ -116,3 +118,34 @@ EqOP          [!=]=
 {EqOP}          { yylval.str_val = new string(yytext); return EQOP; }
 ```
 除此之外，由于Koopa IR不支持逻辑运算，LAnd和LOr在运算时会对两边的表达式进行ne 0的操作，将其转换为逻辑运算
+
+### 目标代码生成
+考虑到后续寄存器分配的问题，设计了一个RISCV_Builder类，并于其中维护一个env类，保存和更新寄存器的使用情况
+```c++
+class RISCV_Builder {
+  class Env {
+    enum Register_State { UNUSED, USED };
+    std::map<koopa_raw_value_t, std::string>
+        register_alloc_map;
+    std::map<std::string, Register_State> register_state_map;
+   public:
+    void state_init();
+    void state_free(std::string reg);
+    std::string register_check(koopa_raw_value_t value);
+    std::string register_alloc(koopa_raw_value_t value);
+  };
+  Env env;
+  std::string load_register(koopa_raw_value_t value, std::string reg);
+  std::string raw_visit(const koopa_raw_program_t &raw);
+  std::string raw_visit(const koopa_raw_slice_t &slice);
+  std::string raw_visit(const koopa_raw_function_t &func);
+  std::string raw_visit(const koopa_raw_basic_block_t &bb);
+  std::string raw_visit(const koopa_raw_value_t &value);
+  std::string raw_visit(const koopa_raw_return_t &return_value);
+  //std::string raw_visit(const koopa_raw_integer_t &integer_value);
+  std::string raw_visit(const koopa_raw_binary_t &binary_value);
+ public:
+  RISCV_Builder() = default;
+  void build(koopa_raw_program_t raw, const char *path);
+};
+```

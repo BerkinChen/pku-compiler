@@ -151,8 +151,8 @@ class LAndExpAST : public BaseAST {
   LAndExpAST(std::unique_ptr<BaseAST>& eq_exp);
   LAndExpAST(const char* op, std::unique_ptr<BaseAST>& and_exp,
              std::unique_ptr<BaseAST>& eq_exp);
-  void* make_bool(koopa_raw_slice_t parent,
-                  std::vector<const void*>& inst_buf, koopa_raw_value_t exp) const;
+  void* make_bool(koopa_raw_slice_t parent, std::vector<const void*>& inst_buf,
+                  const std::unique_ptr<BaseAST>& exp) const;
   void* to_koopa(koopa_raw_slice_t parent,
                  std::vector<const void*>& inst_buf) const override;
 };
@@ -167,7 +167,7 @@ class LOrExpAST : public BaseAST {
   LOrExpAST(const char* op, std::unique_ptr<BaseAST>& or_exp,
             std::unique_ptr<BaseAST>& and_exp);
   void* make_bool(koopa_raw_slice_t parent, std::vector<const void*>& inst_buf,
-                  koopa_raw_value_t exp) const;
+                  const std::unique_ptr<BaseAST>& exp) const;
   void* to_koopa(koopa_raw_slice_t parent,
                  std::vector<const void*>& inst_buf) const override;
 };

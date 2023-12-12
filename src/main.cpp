@@ -48,7 +48,10 @@ int main(int argc, const char *argv[]) {
     }
     koopa_dump_to_file(program, output);
     koopa_delete_program(program);
-  } else
+  } else {
+    RISCV_Builder builder;
+    builder.build(raw, output);
+  }
     //raw_dump_to_riscv(raw, output);
     /*
   koopa_program_t program;
