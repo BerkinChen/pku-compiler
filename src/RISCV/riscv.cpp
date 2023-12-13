@@ -150,7 +150,10 @@ std::string RISCV_Builder::raw_visit(const koopa_raw_binary_t &b_value) {
       b_value.lhs->kind.data.integer.value == 0) {
     rs1 = "x0";
   } else {
-    rs1 = rd;
+    rs1 = env.register_alloc(b_value.lhs);
+    if (rs1 != "Null") {
+      ret += load_register(b_value.lhs, rs1);
+    }
   }
   std::string rs2;
   if (b_value.rhs->kind.tag == KOOPA_RVT_INTEGER &&
@@ -158,13 +161,14 @@ std::string RISCV_Builder::raw_visit(const koopa_raw_binary_t &b_value) {
     rs2 = "x0";
   } else {
     rs2 = env.register_alloc(b_value.rhs);
-    if (rs1 != "Null") {
-      ret += load_register(b_value.lhs, rs1);
-    }
     if (rs2 != "Null") {
       ret += load_register(b_value.rhs, rs2);
     }
-    // env.state_free(rs1);
+  }
+  if (rs1 != "Null" || rs1 != "x0") {
+    env.state_free(rs1);
+  }
+  if (rs2 != "Null" || rs2 != "x0") {
     env.state_free(rs2);
   }
   switch (b_value.op) {

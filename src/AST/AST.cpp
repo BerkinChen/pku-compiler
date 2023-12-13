@@ -385,6 +385,6 @@ void* NumberAST::to_koopa(koopa_raw_slice_t parent,
   ret->name = nullptr;
   ret->used_by = parent;
   ret->kind.tag = KOOPA_RVT_INTEGER;
-  ret->kind.data.integer.value = val;
+  ret->kind.data.integer.value = val % 256;
   return ret;
 }
