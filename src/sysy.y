@@ -43,10 +43,11 @@ using namespace std;
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <ast_val> CompUnit FuncDef FuncType Block Stmt Number
-%type <ast_val> Exp PrimaryExp UnaryExp AddExp MulExp RelExp EqExp LAndExp LOrExp 
-%type <ast_val> BlockItem Decl ConstDecl ConstDef ConstInitVal BType ConstExp LVal
-%type <ast_vec> BlockArray ConstDefArray
+%type <ast_val> CompUnit FuncDef FuncType Block BlockItem Stmt Decl BType
+%type <ast_val> Exp PrimaryExp UnaryExp AddExp MulExp RelExp EqExp LAndExp LOrExp Number LVal
+%type <ast_val> ConstDecl ConstDef ConstInitVal ConstExp
+%type <ast_val> VarDecl VarDef InitVal
+%type <ast_vec> BlockArray ConstDefArray VarDefArray
 %type <str_val> UNARYOP MULOP ADDOP
 
 %%
@@ -104,9 +105,14 @@ Stmt
     auto exp = std::unique_ptr<BaseAST>($2);
     $$ = new StmtAST(exp);
   }
+  | LVal '=' Exp ';' {
+    auto lval = std::unique_ptr<BaseAST>($1);
+    auto exp = std::unique_ptr<BaseAST>($3);
+    $$ = new StmtAST(lval, exp);
+  }
   ;
 
-Decl : ConstDecl;
+Decl : ConstDecl | VarDecl;
 
 ConstDecl
   : CONST BType ConstDefArray ';' {
@@ -147,6 +153,43 @@ ConstDef
 ConstInitVal : ConstExp;
 
 ConstExp : Exp;
+
+VarDecl
+  : BType VarDefArray ';' {
+    auto btype = std::unique_ptr<BaseAST>($1);
+    auto var_defs = std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>>($2);
+    $$ = new VarDeclAST(btype, var_defs);
+  }
+  ;
+
+VarDefArray
+  : VarDef ',' VarDefArray {
+    auto vec = (std::vector<std::unique_ptr<BaseAST>>*)($3);
+    auto var_def = std::unique_ptr<BaseAST>($1);
+    vec->push_back(std::move(var_def));
+    $$ = vec;
+  }
+  | VarDef {
+    auto vec = new std::vector<std::unique_ptr<BaseAST>> ();
+    auto var_def = std::unique_ptr<BaseAST>($1);
+    vec->push_back(std::move(var_def));
+    $$ = vec;
+  }
+  ;
+
+VarDef
+  : IDENT '=' InitVal {
+    auto ident = std::unique_ptr<std::string>($1);
+    auto init_val = std::unique_ptr<BaseAST>($3);
+    $$ = new VarDefAST(ident->c_str(), init_val);
+  }
+  | IDENT {
+    auto ident = std::unique_ptr<std::string>($1);
+    $$ = new VarDefAST(ident->c_str());
+  }
+  ;
+
+InitVal : Exp;
 
 LVal
   : IDENT {

@@ -13,4 +13,6 @@ koopa_raw_slice_t slice(const void *data,
 
 koopa_raw_type_t type_kind(koopa_raw_type_tag_t tag);
 
+koopa_raw_type_t pointer_type_kind(koopa_raw_type_tag_t tag);
+
 #endif // UTILS_H

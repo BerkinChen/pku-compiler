@@ -22,6 +22,10 @@ public:
     return nullptr;
   }
   virtual void *to_koopa(koopa_raw_type_t type) const { return nullptr; }
+  virtual void *
+  to_koopa(std::vector<const void *> &inst_buf, koopa_raw_type_t type) const {
+    return nullptr;
+  }
   virtual int cal_value() const { return 0; }
 };
 
@@ -63,8 +67,11 @@ public:
 
 class StmtAST : public BaseAST {
 public:
+  enum { Exp, Assign } type;
   std::unique_ptr<BaseAST> exp;
+  std::unique_ptr<BaseAST> lval;
   StmtAST(std::unique_ptr<BaseAST> &exp);
+  StmtAST(std::unique_ptr<BaseAST> &lval, std::unique_ptr<BaseAST> &exp);
   void *to_koopa(std::vector<const void *> &inst_buf) const override;
 };
 
@@ -93,10 +100,33 @@ public:
   void *to_koopa(koopa_raw_type_t type) const override;
 };
 
+class VarDeclAST : public BaseAST {
+public:
+  std::unique_ptr<BaseAST> var_type;
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> VarDef_vec;
+  VarDeclAST(std::unique_ptr<BaseAST> &var_type,
+             std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> &VarDef_vec);
+  void *to_koopa(std::vector<const void *> &inst_buf) const override;
+};
+
+class VarDefAST : public BaseAST {
+public:
+  enum { Exp, Zero } type;
+  std::string ident;
+  std::unique_ptr<BaseAST> exp;
+  VarDefAST(const char *ident, std::unique_ptr<BaseAST> &exp);
+  VarDefAST(const char *ident);
+  void *to_koopa(std::vector<const void *> &inst_buf,
+                 koopa_raw_type_t type) const override;
+};
+
+
+
 class LValAST : public BaseAST {
 public:
   std::string ident;
   LValAST(const char *ident);
+  void *to_koopa() const override;
   void *to_koopa(koopa_raw_slice_t parent,
                  std::vector<const void *> &inst_buf) const override;
   int cal_value() const override;

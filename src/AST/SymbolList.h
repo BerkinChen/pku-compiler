@@ -1,5 +1,6 @@
 #ifndef SYMBOL_LIST_H
 #define SYMBOL_LIST_H
+#include "koopa.h"
 #include <map>
 #include <string>
 #include <variant>
@@ -7,9 +8,15 @@
 enum ValueType { Const, Var };
 struct Value {
   ValueType type;
-  int value;
+  union SymbolListValue {
+    int const_value;
+    koopa_raw_value_t var_value;
+  } data;
   Value() = default;
-  Value(ValueType type, int value): type(type), value(value) {};
+  Value(ValueType type, int value) : type(type) { data.const_value = value; }
+  Value(ValueType type, koopa_raw_value_t value) : type(type) {
+    data.var_value = value;
+  }
 };
 
 class SymbolList {

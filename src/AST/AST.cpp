@@ -75,7 +75,14 @@ void *BlockAST::to_koopa() const {
 }
 
 // StmtAST
-StmtAST::StmtAST(std::unique_ptr<BaseAST> &exp) : exp(std::move(exp)) {}
+StmtAST::StmtAST(std::unique_ptr<BaseAST> &exp) : exp(std::move(exp)) {
+  type = Exp;
+}
+
+StmtAST::StmtAST(std::unique_ptr<BaseAST> &lval, std::unique_ptr<BaseAST> &exp)
+    : exp(std::move(exp)), lval(std::move(lval)) {
+  type = Assign;
+}
 
 void *StmtAST::to_koopa(std::vector<const void *> &inst_buf) const {
   koopa_raw_value_data *ret = new koopa_raw_value_data();
@@ -83,9 +90,17 @@ void *StmtAST::to_koopa(std::vector<const void *> &inst_buf) const {
   ret->ty = type_kind(KOOPA_RTT_UNIT);
   ret->name = nullptr;
   ret->used_by = slice(KOOPA_RSIK_VALUE);
-  ret->kind.tag = KOOPA_RVT_RETURN;
-  ret->kind.data.ret.value =
-      (const koopa_raw_value_data *)exp->to_koopa(used_by, inst_buf);
+  if (type == Exp) {
+    ret->kind.tag = KOOPA_RVT_RETURN;
+    ret->kind.data.ret.value =
+        (const koopa_raw_value_data *)exp->to_koopa(used_by, inst_buf);
+  } else if (type == Assign) {
+    ret->kind.tag = KOOPA_RVT_STORE;
+    ret->kind.data.store.dest =
+        (koopa_raw_value_t)lval->to_koopa();
+    ret->kind.data.store.value =
+        (koopa_raw_value_t)exp->to_koopa(used_by, inst_buf);
+  }
   inst_buf.push_back(ret);
   return ret;
 }
@@ -119,35 +134,95 @@ void *BTypeAST::to_koopa() const {
 ConstDefAST::ConstDefAST(const char *ident, std::unique_ptr<BaseAST> &exp)
     : ident(ident), exp(std::move(exp)) {}
 
-void *ConstDefAST::to_koopa(koopa_raw_type_t type) const {
-  char *name = new char[ident.length()];
-  ident.copy(name, ident.length());
+void *ConstDefAST::to_koopa(koopa_raw_type_t const_type) const {
   int val = exp->cal_value();
   Value value = Value(ValueType::Const, val);
-  symbol_list.addSymbol(name, value);
-  //std::cout << "name: " << name <<" value: " << symbol_list.getSymbol(name).value << std::endl;
+  symbol_list.addSymbol(ident.c_str(), value);
+  // std::cout << "name: " << name <<" value: " <<
+  // symbol_list.getSymbol(name).value << std::endl;
+  return nullptr;
+}
+
+// VarDeclAST
+VarDeclAST::VarDeclAST(
+    std::unique_ptr<BaseAST> &var_type,
+    std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> &VarDef_vec)
+    : var_type(std::move(var_type)), VarDef_vec(std::move(VarDef_vec)) {}
+
+void *VarDeclAST::to_koopa(std::vector<const void *> &inst_buf) const {
+  koopa_raw_type_t type = (const koopa_raw_type_t)var_type->to_koopa();
+  for (auto var_def = (*VarDef_vec).end() - 1; var_def >= (*VarDef_vec).begin();
+       var_def--) {
+    (*var_def)->to_koopa(inst_buf, type);
+  }
+  return nullptr;
+}
+
+// VarDefAST
+VarDefAST::VarDefAST(const char *ident, std::unique_ptr<BaseAST> &exp)
+    : ident(ident), exp(std::move(exp)) {
+  type = Exp;
+}
+
+VarDefAST::VarDefAST(const char *ident) : ident(ident) { type = Zero; }
+
+void *VarDefAST::to_koopa(std::vector<const void *> &inst_buf,
+                          koopa_raw_type_t var_type) const {
+  koopa_raw_value_data *ret = new koopa_raw_value_data();
+  koopa_raw_slice_t used_by = slice(ret, KOOPA_RSIK_VALUE);
+  ret->ty = pointer_type_kind(KOOPA_RTT_INT32);
+  char *name = new char[ident.length() + 1];
+  ("@" + ident).copy(name, ident.length() + 1);
+  ret->name = name;
+  ret->used_by = slice(KOOPA_RSIK_VALUE);
+  ret->kind.tag = KOOPA_RVT_ALLOC;
+  inst_buf.push_back(ret);
+  Value value = Value(ValueType::Var, ret);
+  symbol_list.addSymbol(ident.c_str(), value);
+  if (type == Exp) {
+    koopa_raw_value_data *store = new koopa_raw_value_data();
+    store->name = nullptr;
+    store->used_by = slice(KOOPA_RSIK_VALUE);
+    store->kind.tag = KOOPA_RVT_STORE;
+    store->kind.data.store.dest = (koopa_raw_value_t)ret;
+    store->kind.data.store.value =
+        (koopa_raw_value_t)exp->to_koopa(used_by, inst_buf);
+    inst_buf.push_back(store);
+  }
+  // std::cout << "name: " << name <<" value: " <<
+  // symbol_list.getSymbol(name).value << std::endl;
   return nullptr;
 }
 
 // LValAST
 LValAST::LValAST(const char *ident) : ident(ident) {}
 
+void *LValAST::to_koopa() const {
+  return (void *)symbol_list.getSymbol(ident).data.var_value;
+}
+
 void *LValAST::to_koopa(koopa_raw_slice_t parent,
                         std::vector<const void *> &inst_buf) const {
-  int value = symbol_list.getSymbol(ident).value;
-  std::cout << "value: " << value << std::endl;
+  Value value = symbol_list.getSymbol(ident);
   koopa_raw_value_data *ret = new koopa_raw_value_data();
   ret->ty = type_kind(KOOPA_RTT_INT32);
   ret->name = nullptr;
   ret->used_by = parent;
-  ret->kind.tag = KOOPA_RVT_INTEGER;
-  ret->kind.data.integer.value = value;
+  //std::cout << "value: " << value.type << std::endl;
+  if (value.type == ValueType::Var) {
+    ret->kind.tag = KOOPA_RVT_LOAD;
+    ret->kind.data.load.src = (koopa_raw_value_t)value.data.var_value;
+    inst_buf.push_back(ret);
+  } else if (value.type == ValueType::Const) {
+    ret->kind.tag = KOOPA_RVT_INTEGER;
+    ret->kind.data.integer.value = value.data.const_value;
+  }
   return ret;
 }
 
-int LValAST::cal_value() const { 
-  return symbol_list.getSymbol(ident).value;
- } 
+int LValAST::cal_value() const {
+  return symbol_list.getSymbol(ident).data.const_value;
+}
 
 // ExpAST
 ExpAST::ExpAST(std::unique_ptr<BaseAST> &add_exp)
@@ -517,7 +592,6 @@ void *LOrExpAST::to_koopa(koopa_raw_slice_t parent,
   inst_buf.push_back(ret);
   return ret;
 }
-
 
 int LOrExpAST::cal_value() const {
   if (type == Exp)
