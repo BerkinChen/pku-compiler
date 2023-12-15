@@ -69,8 +69,17 @@ void *BlockAST::to_koopa() const {
        blockitem != (*blockitem_vec).begin() - 1; blockitem--) {
     (*blockitem)->to_koopa(items);
   }
+  auto last_inst = (koopa_raw_value_t)items.back();
+  if (last_inst->kind.tag != KOOPA_RVT_RETURN) {
+    koopa_raw_value_data *ret = new koopa_raw_value_data();
+    ret->ty = type_kind(KOOPA_RTT_UNIT);
+    ret->name = nullptr;
+    ret->used_by = slice(KOOPA_RSIK_VALUE);
+    ret->kind.tag = KOOPA_RVT_RETURN;
+    ret->kind.data.ret.value = (koopa_raw_value_t)NumberAST(0).to_koopa(slice(), items);
+    items.push_back(ret);
+  }
   ret->insts = slice(items, KOOPA_RSIK_VALUE);
-
   return ret;
 }
 
