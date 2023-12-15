@@ -37,8 +37,9 @@ int main(int argc, const char *argv[]) {
   // 输出到输出文件
   std::unique_ptr<CompUnitAST> comp_ast(
       dynamic_cast<CompUnitAST *>(ast.release()));
+  
   koopa_raw_program_t raw = *(koopa_raw_program_t *)comp_ast->to_koopa();
-
+  
   if (std::string(mode) == "-koopa") {
     koopa_program_t program;
     koopa_error_code_t eno = koopa_generate_raw_to_koopa(&raw, &program);

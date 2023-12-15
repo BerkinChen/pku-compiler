@@ -149,3 +149,27 @@ class RISCV_Builder {
   void build(koopa_raw_program_t raw, const char *path);
 };
 ```
+## Lv4
+### 常量
+根据语法设计对应的ast，对const关键字做对应处理，对于const变量在处理时直接计算出其值，对于const变量的使用，直接将其值替换到使用的地方。为此给表达式相关的ast添加了一个新函数用于计算表达式的值。设计了一个符号表存储有关常量的信息。
+```c++
+enum ValueType { Const, Var };
+struct Value {
+  ValueType type;
+  int value;
+  Value() = default;
+  Value(ValueType type, int value): type(type), value(value) {};
+};
+
+class SymbolList {
+private:
+  std::map<std::string, Value> symbol_list;
+
+public:
+  ~SymbolList() = default;
+  void addSymbol(std::string symbol, Value value);
+  Value getSymbol(std::string symbol);
+  void init();
+};
+```
+
