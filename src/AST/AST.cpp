@@ -68,6 +68,12 @@ void *BlockAST::to_koopa() const {
   for (auto blockitem = (*blockitem_vec).end() - 1;
        blockitem != (*blockitem_vec).begin() - 1; blockitem--) {
     (*blockitem)->to_koopa(items);
+    if (items.size() > 0) {
+      auto inst = (koopa_raw_value_t)items.back();
+      if (inst->kind.tag == KOOPA_RVT_RETURN) {
+        break;
+      }
+    }
   }
   auto last_inst = (koopa_raw_value_t)items.back();
   if (last_inst->kind.tag != KOOPA_RVT_RETURN) {
