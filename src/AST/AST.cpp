@@ -108,7 +108,7 @@ void *StmtAST::to_koopa(std::vector<const void *> &inst_buf) const {
   if (type == Exp) {
     ret->kind.tag = KOOPA_RVT_RETURN;
     ret->kind.data.ret.value =
-        (const koopa_raw_value_data *)exp->to_koopa(used_by, inst_buf);
+        (koopa_raw_value_t)exp->to_koopa(used_by, inst_buf);
   } else if (type == Assign) {
     ret->kind.tag = KOOPA_RVT_STORE;
     ret->kind.data.store.dest =
@@ -184,7 +184,6 @@ VarDefAST::VarDefAST(const char *ident) : ident(ident) { type = Zero; }
 void *VarDefAST::to_koopa(std::vector<const void *> &inst_buf,
                           koopa_raw_type_t var_type) const {
   koopa_raw_value_data *ret = new koopa_raw_value_data();
-  koopa_raw_slice_t used_by = slice(ret, KOOPA_RSIK_VALUE);
   ret->ty = pointer_type_kind(KOOPA_RTT_INT32);
   char *name = new char[ident.length() + 1];
   ("@" + ident).copy(name, ident.length() + 1);
@@ -196,6 +195,8 @@ void *VarDefAST::to_koopa(std::vector<const void *> &inst_buf,
   symbol_list.addSymbol(ident.c_str(), value);
   if (type == Exp) {
     koopa_raw_value_data *store = new koopa_raw_value_data();
+    koopa_raw_slice_t used_by = slice(store, KOOPA_RSIK_VALUE);
+    store->ty = type_kind(KOOPA_RTT_INT32);
     store->name = nullptr;
     store->used_by = slice(KOOPA_RSIK_VALUE);
     store->kind.tag = KOOPA_RVT_STORE;

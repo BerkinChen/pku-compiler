@@ -12,28 +12,42 @@
 class RISCV_Builder {
   class Env {
     enum Register_State { UNUSED, USED };
+    int stack_size = 0;
+    int cur_size = 0;
     std::map<koopa_raw_value_t, std::string>
         register_alloc_map;
     std::map<std::string, Register_State> register_state_map;
+    std::map<koopa_raw_value_t, int> addr_map;
    public:
-    void state_init();
+    void init(int size);
     void state_free(std::string reg);
+    int get_addr(koopa_raw_value_t value);
+    int get_stack_size() { return stack_size; };
+    std::string get_register(koopa_raw_value_t value);
     std::string register_check(koopa_raw_value_t value);
-    std::string register_alloc(koopa_raw_value_t value);
   };
   Env env;
-  std::string load_register(koopa_raw_value_t value, std::string reg);
-  std::string raw_visit(const koopa_raw_program_t &raw);
-  std::string raw_visit(const koopa_raw_slice_t &slice);
-  std::string raw_visit(const koopa_raw_function_t &func);
-  std::string raw_visit(const koopa_raw_basic_block_t &bb);
-  std::string raw_visit(const koopa_raw_value_t &value);
-  std::string raw_visit(const koopa_raw_return_t &return_value);
-  //std::string raw_visit(const koopa_raw_integer_t &integer_value);
-  std::string raw_visit(const koopa_raw_binary_t &binary_value);
+  std::ofstream out;
+  static int func_size(koopa_raw_function_t func);
+  static int bb_size(koopa_raw_basic_block_t bb);
+  static int inst_size(koopa_raw_value_t value);
+  void load_register(koopa_raw_value_t value, std::string reg);
+  void store_stack(koopa_raw_value_t value, std::string reg);
+  void raw_visit(const koopa_raw_program_t &raw);
+  void raw_visit(const koopa_raw_slice_t &slice);
+  void raw_visit(const koopa_raw_function_t &func);
+  void raw_visit(const koopa_raw_basic_block_t &bb);
+  void raw_visit(const koopa_raw_value_t &value);
+  void raw_visit(const koopa_raw_return_t &return_value);
+  //void raw_visit(const koopa_raw_integer_t &integer_value);
+  void raw_visit(const koopa_raw_binary_t &binary_value);
+  void raw_visit(const koopa_raw_load_t &load_value);
+  void raw_visit(const koopa_raw_store_t &store_value);
  public:
-  RISCV_Builder() = default;
-  void build(koopa_raw_program_t raw, const char *path);
+   RISCV_Builder(const char *path) {
+      out.open(path);
+   };
+   void build(koopa_raw_program_t raw);
 };
 
 #endif  // RISCV_H

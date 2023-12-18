@@ -35,11 +35,10 @@ int main(int argc, const char *argv[]) {
   assert(!ret);
   // std::cout << ast->to_string() << std::endl;
   // 输出到输出文件
-  std::unique_ptr<CompUnitAST> comp_ast(
-      dynamic_cast<CompUnitAST *>(ast.release()));
   
-  koopa_raw_program_t raw = *(koopa_raw_program_t *)comp_ast->to_koopa();
   
+  koopa_raw_program_t raw = *(koopa_raw_program_t *)ast->to_koopa();
+  ast.release();
   if (std::string(mode) == "-koopa") {
     koopa_program_t program;
     koopa_error_code_t eno = koopa_generate_raw_to_koopa(&raw, &program);
@@ -50,8 +49,8 @@ int main(int argc, const char *argv[]) {
     koopa_dump_to_file(program, output);
     koopa_delete_program(program);
   } else {
-    RISCV_Builder builder;
-    builder.build(raw, output);
+    RISCV_Builder builder(output);
+    builder.build(raw);
   }
     //raw_dump_to_riscv(raw, output);
     /*
