@@ -59,19 +59,24 @@ public:
 
 class BlockAST : public BaseAST {
 public:
+  enum {Item, Empty} type;
   std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> blockitem_vec;
+  BlockAST();
   BlockAST(
       std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> &blockitem_vec);
   void *to_koopa() const override;
+  void *to_koopa(std::vector<const void *> &inst_buf) const override;
 };
 
 class StmtAST : public BaseAST {
 public:
-  enum { Exp, Assign } type;
+  enum StmtType{ Exp, Assign, Block, Return, Empty};
+  StmtType type;
   std::unique_ptr<BaseAST> exp;
   std::unique_ptr<BaseAST> lval;
-  StmtAST(std::unique_ptr<BaseAST> &exp);
-  StmtAST(std::unique_ptr<BaseAST> &lval, std::unique_ptr<BaseAST> &exp);
+  StmtAST(StmtType type);
+  StmtAST(std::unique_ptr<BaseAST> &exp, StmtType type);
+  StmtAST(std::unique_ptr<BaseAST> &lval, std::unique_ptr<BaseAST> &exp, StmtType type);
   void *to_koopa(std::vector<const void *> &inst_buf) const override;
 };
 

@@ -53,20 +53,23 @@ void *FuncTypeAST::to_koopa() const {
 }
 
 // BlockAST
+BlockAST::BlockAST() {type = Empty;}
+
 BlockAST::BlockAST(
     std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> &blockitem_vec)
     : blockitem_vec(std::move(blockitem_vec)) {}
 
 void *BlockAST::to_koopa() const {
-  std::unique_ptr<SymbolList> symbol_list = std::make_unique<SymbolList>();
-  symbol_list->init();
+  if (type == Empty)
+    return nullptr;
+  symbol_list.newScope();
   koopa_raw_basic_block_data_t *ret = new koopa_raw_basic_block_data_t();
   ret->name = "%entry";
   ret->params = slice(KOOPA_RSIK_VALUE);
   ret->used_by = slice(KOOPA_RSIK_VALUE);
   std::vector<const void *> items;
-  for (auto blockitem = (*blockitem_vec).end() - 1;
-       blockitem != (*blockitem_vec).begin() - 1; blockitem--) {
+  for (auto blockitem = (*blockitem_vec).rbegin();
+       blockitem != (*blockitem_vec).rend(); blockitem++) {
     (*blockitem)->to_koopa(items);
     if (items.size() > 0) {
       auto inst = (koopa_raw_value_t)items.back();
@@ -82,22 +85,36 @@ void *BlockAST::to_koopa() const {
     ret->name = nullptr;
     ret->used_by = slice(KOOPA_RSIK_VALUE);
     ret->kind.tag = KOOPA_RVT_RETURN;
-    ret->kind.data.ret.value = (koopa_raw_value_t)NumberAST(0).to_koopa(slice(), items);
+    ret->kind.data.ret.value =
+        (koopa_raw_value_t)NumberAST(0).to_koopa(slice(), items);
     items.push_back(ret);
   }
   ret->insts = slice(items, KOOPA_RSIK_VALUE);
+  symbol_list.delScope();
   return ret;
 }
 
-// StmtAST
-StmtAST::StmtAST(std::unique_ptr<BaseAST> &exp) : exp(std::move(exp)) {
-  type = Exp;
+void *BlockAST::to_koopa(std::vector<const void *> &inst_buf) const {
+  if (type == Empty)
+    return nullptr;
+  symbol_list.newScope();
+  for (auto blockitem = (*blockitem_vec).rbegin();
+       blockitem != (*blockitem_vec).rend(); blockitem++) {
+    (*blockitem)->to_koopa(inst_buf);
+  }
+  symbol_list.delScope();
+  return nullptr;
 }
 
-StmtAST::StmtAST(std::unique_ptr<BaseAST> &lval, std::unique_ptr<BaseAST> &exp)
-    : exp(std::move(exp)), lval(std::move(lval)) {
-  type = Assign;
-}
+// StmtAST
+StmtAST::StmtAST(StmtType type) : type(type) {}
+
+StmtAST::StmtAST(std::unique_ptr<BaseAST> &exp, StmtType type)
+    : type(type), exp(std::move(exp)) {}
+
+StmtAST::StmtAST(std::unique_ptr<BaseAST> &lval, std::unique_ptr<BaseAST> &exp,
+                 StmtType type)
+    : type(type), exp(std::move(exp)), lval(std::move(lval)) {}
 
 void *StmtAST::to_koopa(std::vector<const void *> &inst_buf) const {
   koopa_raw_value_data *ret = new koopa_raw_value_data();
@@ -105,18 +122,23 @@ void *StmtAST::to_koopa(std::vector<const void *> &inst_buf) const {
   ret->ty = type_kind(KOOPA_RTT_UNIT);
   ret->name = nullptr;
   ret->used_by = slice(KOOPA_RSIK_VALUE);
-  if (type == Exp) {
+  if (type == Return) {
     ret->kind.tag = KOOPA_RVT_RETURN;
-    ret->kind.data.ret.value =
-        (koopa_raw_value_t)exp->to_koopa(used_by, inst_buf);
+    if (exp != nullptr)
+      ret->kind.data.ret.value =
+          (koopa_raw_value_t)exp->to_koopa(used_by, inst_buf);
+    inst_buf.push_back(ret);
   } else if (type == Assign) {
     ret->kind.tag = KOOPA_RVT_STORE;
-    ret->kind.data.store.dest =
-        (koopa_raw_value_t)lval->to_koopa();
+    ret->kind.data.store.dest = (koopa_raw_value_t)lval->to_koopa();
     ret->kind.data.store.value =
         (koopa_raw_value_t)exp->to_koopa(used_by, inst_buf);
+    inst_buf.push_back(ret);
+  } else if (type == Exp) {
+    exp->to_koopa(used_by, inst_buf);
+  } else if (type == Block) {
+    exp->to_koopa(inst_buf);
   }
-  inst_buf.push_back(ret);
   return ret;
 }
 
@@ -166,8 +188,8 @@ VarDeclAST::VarDeclAST(
 
 void *VarDeclAST::to_koopa(std::vector<const void *> &inst_buf) const {
   koopa_raw_type_t type = (const koopa_raw_type_t)var_type->to_koopa();
-  for (auto var_def = (*VarDef_vec).end() - 1; var_def >= (*VarDef_vec).begin();
-       var_def--) {
+  for (auto var_def = (*VarDef_vec).rbegin(); var_def != (*VarDef_vec).rend();
+       var_def++) {
     (*var_def)->to_koopa(inst_buf, type);
   }
   return nullptr;
@@ -224,7 +246,7 @@ void *LValAST::to_koopa(koopa_raw_slice_t parent,
   ret->ty = type_kind(KOOPA_RTT_INT32);
   ret->name = nullptr;
   ret->used_by = parent;
-  //std::cout << "value: " << value.type << std::endl;
+  // std::cout << "value: " << value.type << std::endl;
   if (value.type == ValueType::Var) {
     ret->kind.tag = KOOPA_RVT_LOAD;
     ret->kind.data.load.src = (koopa_raw_value_t)value.data.var_value;

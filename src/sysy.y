@@ -82,6 +82,9 @@ Block
     auto BlockArray = std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>>($2);
     $$ = new BlockAST(BlockArray);
   }
+  | '{' '}' {
+    $$ = new BlockAST();
+  }
   ;
 
 BlockArray
@@ -97,18 +100,33 @@ BlockArray
     vec->push_back(std::move(blockitem));
     $$ = vec;
   }
+  ;
 
 BlockItem : Stmt | Decl;
 
 Stmt
   : RETURN Exp ';' {
     auto exp = std::unique_ptr<BaseAST>($2);
-    $$ = new StmtAST(exp);
+    $$ = new StmtAST(exp, StmtAST::StmtType::Return);
   }
   | LVal '=' Exp ';' {
     auto lval = std::unique_ptr<BaseAST>($1);
     auto exp = std::unique_ptr<BaseAST>($3);
-    $$ = new StmtAST(lval, exp);
+    $$ = new StmtAST(lval, exp, StmtAST::StmtType::Assign);
+  }
+  | Block {
+    auto block = std::unique_ptr<BaseAST>($1);
+    $$ = new StmtAST(block, StmtAST::StmtType::Block);
+  }
+  | Exp ';' {
+    auto exp = std::unique_ptr<BaseAST>($1);
+    $$ = new StmtAST(exp, StmtAST::StmtType::Exp);
+  }
+  | ';' {
+    $$ = new StmtAST(StmtAST::StmtType::Empty);
+  }
+  | RETURN ';' {
+    $$ = new StmtAST(StmtAST::StmtType::Return);
   }
   ;
 

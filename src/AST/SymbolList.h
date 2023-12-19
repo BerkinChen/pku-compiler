@@ -21,13 +21,14 @@ struct Value {
 
 class SymbolList {
 private:
-  std::map<std::string, Value> symbol_list;
+  std::vector<std::map<std::string, Value>> symbol_list_vector;
 
 public:
   ~SymbolList() = default;
   void addSymbol(std::string symbol, Value value);
   Value getSymbol(std::string symbol);
-  void init();
+  void newScope();
+  void delScope();
 };
 
 #endif // SYMBOL_LIST_H
