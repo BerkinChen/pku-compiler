@@ -38,7 +38,7 @@ using namespace std;
 
 // lexer 返回的所有 token 种类的声明
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
-%token INT RETURN CONST
+%token INT RETURN CONST IF ELSE
 %token <str_val> IDENT EQOP RELOP AND OR
 %token <int_val> INT_CONST
 
@@ -47,6 +47,7 @@ using namespace std;
 %type <ast_val> Exp PrimaryExp UnaryExp AddExp MulExp RelExp EqExp LAndExp LOrExp Number LVal
 %type <ast_val> ConstDecl ConstDef ConstInitVal ConstExp
 %type <ast_val> VarDecl VarDef InitVal
+%type <ast_val> If
 %type <ast_vec> BlockArray ConstDefArray VarDefArray
 %type <str_val> UNARYOP MULOP ADDOP
 
@@ -127,6 +128,23 @@ Stmt
   }
   | RETURN ';' {
     $$ = new StmtAST(StmtAST::StmtType::Return);
+  }
+  | If ELSE Stmt {
+    auto exp = std::unique_ptr<BaseAST>($1);
+    auto stmt = std::unique_ptr<BaseAST>($3);
+    $$ = new StmtAST(stmt, exp, StmtAST::StmtType::If);
+  }
+  | If {
+    auto exp = std::unique_ptr<BaseAST>($1);
+    $$ = new StmtAST(exp, StmtAST::StmtType::If);
+  }
+  ;
+
+If
+ : IF '(' Exp ')' Stmt {
+    auto exp = std::unique_ptr<BaseAST>($3);
+    auto stmt = std::unique_ptr<BaseAST>($5);
+    $$ = new IfAST(exp, stmt);
   }
   ;
 
