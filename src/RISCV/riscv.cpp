@@ -128,6 +128,10 @@ void RISCV_Builder::raw_visit(const koopa_raw_function_t &func) {
 void RISCV_Builder::raw_visit(const koopa_raw_basic_block_t &bb) {
   // TODO: used_by
   // TODO: params
+  std::cout << bb->name << std::endl;
+  std::string name = bb->name + 1;
+  if (name != "entry")
+    out << name << ":\n";
   raw_visit(bb->insts);
 }
 
@@ -152,6 +156,12 @@ void RISCV_Builder::raw_visit(const koopa_raw_value_t &value) {
     break;
   case KOOPA_RVT_BINARY:
     raw_visit(kind.data.binary, addr);
+    break;
+  case KOOPA_RVT_BRANCH:
+    raw_visit(kind.data.branch);
+    break;
+  case KOOPA_RVT_JUMP:
+    raw_visit(kind.data.jump);
     break;
   default:
     assert(false);
@@ -236,6 +246,16 @@ void RISCV_Builder::raw_visit(const koopa_raw_load_t &l_value, int addr) {
   std::string rs1 = "t0";
   load_register(l_value.src, rs1);
   out << "  sw " + rs1 + ", " + std::to_string(addr) + "(sp)\n";
+}
+
+void RISCV_Builder::raw_visit(const koopa_raw_branch_t &b_value) {
+  load_register(b_value.cond, "t0");
+  out << "  bnez t0, " + std::string(b_value.true_bb->name + 1) + "\n";
+  out << "  j " + std::string(b_value.false_bb->name + 1) + "\n";
+}
+
+void RISCV_Builder::raw_visit(const koopa_raw_jump_t &j_value) {
+  out << "  j " + std::string(j_value.target->name + 1) + "\n";
 }
 
 void RISCV_Builder::build(koopa_raw_program_t raw) {

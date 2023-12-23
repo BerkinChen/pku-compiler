@@ -43,6 +43,8 @@ class RISCV_Builder {
   void raw_visit(const koopa_raw_binary_t &binary_value, int addr);
   void raw_visit(const koopa_raw_load_t &load_value, int addr);
   void raw_visit(const koopa_raw_store_t &store_value);
+  void raw_visit(const koopa_raw_branch_t &branch_value);
+  void raw_visit(const koopa_raw_jump_t &jump_value);
  public:
    RISCV_Builder(const char *path) {
       out.open(path);

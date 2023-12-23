@@ -49,8 +49,23 @@ int main(int argc, const char *argv[]) {
     koopa_dump_to_file(program, output);
     koopa_delete_program(program);
   } else {
-    RISCV_Builder builder(output);
-    builder.build(raw);
+    koopa_program_t program;
+    koopa_error_code_t eno = koopa_generate_raw_to_koopa(&raw, &program);
+    if (eno != KOOPA_EC_SUCCESS) {
+      std::cout << "generate raw to koopa error: " << (int)eno << std::endl;
+      return 0;
+    }
+    size_t len = 1000000u;
+    char *buf = new char[len];
+    koopa_dump_to_string(program, buf, &len);
+    koopa_delete_program(program);
+    koopa_program_t kp;
+    koopa_parse_from_string(buf, &kp);
+    koopa_raw_program_builder_t builder = koopa_new_raw_program_builder();
+    koopa_raw_program_t raw = koopa_build_raw_program(builder, kp);
+    koopa_delete_program(kp);
+    RISCV_Builder riscv_builder(output);
+    riscv_builder.build(raw);
   }
     //raw_dump_to_riscv(raw, output);
     /*
