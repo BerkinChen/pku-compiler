@@ -1,6 +1,5 @@
 #include "AST/AST.h"
 #include "AST.h"
-#include <cstring>
 #include <iostream>
 
 // CompUnitAST
@@ -46,6 +45,7 @@ void *FuncDefAST::to_koopa() const {
   block_manager.newBlock(entry);
   block->to_koopa();
   block_manager.delBlock();
+  block_manager.delUnreachableBlock();
   ret->bbs = slice(blocks, KOOPA_RSIK_BASIC_BLOCK);
   return ret;
 }
@@ -89,9 +89,9 @@ StmtAST::StmtAST(StmtType type) : type(type) {}
 StmtAST::StmtAST(std::unique_ptr<BaseAST> &exp, StmtType type)
     : type(type), exp(std::move(exp)) {}
 
-StmtAST::StmtAST(std::unique_ptr<BaseAST> &lval, std::unique_ptr<BaseAST> &exp,
+StmtAST::StmtAST(std::unique_ptr<BaseAST> &stmt, std::unique_ptr<BaseAST> &exp,
                  StmtType type)
-    : type(type), exp(std::move(exp)), lval(std::move(lval)) {}
+    : type(type), exp(std::move(exp)), stmt(std::move(stmt)) {}
 
 void *StmtAST::to_koopa() const {
   koopa_raw_value_data *ret = new koopa_raw_value_data();
@@ -105,7 +105,7 @@ void *StmtAST::to_koopa() const {
     block_manager.addInst(ret);
   } else if (type == Assign) {
     ret->kind.tag = KOOPA_RVT_STORE;
-    ret->kind.data.store.dest = (koopa_raw_value_t)lval->to_left_value();
+    ret->kind.data.store.dest = (koopa_raw_value_t)stmt->to_left_value();
     ret->kind.data.store.value = (koopa_raw_value_t)exp->to_koopa();
     block_manager.addInst(ret);
   } else if (type == Exp) {
@@ -114,7 +114,6 @@ void *StmtAST::to_koopa() const {
     exp->to_koopa();
   } else if (type == If) {
     ret = (koopa_raw_value_data *)exp->to_koopa();
-    bool true_check = block_manager.checkBlock();
     koopa_raw_basic_block_data_t *false_block =
         new koopa_raw_basic_block_data_t();
     false_block->name = "%false";
@@ -122,26 +121,64 @@ void *StmtAST::to_koopa() const {
     false_block->used_by = slice(KOOPA_RSIK_VALUE);
     ret->kind.data.branch.false_bb = (koopa_raw_basic_block_t)false_block;
     ret->kind.data.branch.false_args = slice(KOOPA_RSIK_VALUE);
-    if (lval != nullptr) {
+    if (stmt != nullptr) {
       koopa_raw_basic_block_data_t *end_block =
           new koopa_raw_basic_block_data_t();
       end_block->name = "%end";
       end_block->params = slice(KOOPA_RSIK_VALUE);
       end_block->used_by = slice(KOOPA_RSIK_VALUE);
-      if (!true_check)
-        block_manager.addInst(jump_value(end_block));
+      block_manager.addInst(jump_value(end_block));
       block_manager.newBlock(false_block);
-      lval->to_koopa();
-      bool false_check = block_manager.checkBlock();
-      if (!false_check)
-        block_manager.addInst(jump_value(end_block));
-      if (!true_check || !false_check)
-        block_manager.newBlock(end_block);
+      stmt->to_koopa();
+      block_manager.addInst(jump_value(end_block));
+      block_manager.newBlock(end_block);
     } else {
-      if (!true_check)
-        block_manager.addInst(jump_value(false_block));
+      block_manager.addInst(jump_value(false_block));
       block_manager.newBlock(false_block);
     }
+  } else if (type == While) {
+    koopa_raw_basic_block_data_t *cond_block =
+        new koopa_raw_basic_block_data_t();
+    cond_block->name = "%while_entry";
+    cond_block->params = slice(KOOPA_RSIK_VALUE);
+    cond_block->used_by = slice(KOOPA_RSIK_VALUE);
+    block_manager.addInst(jump_value(cond_block));
+    block_manager.newBlock(cond_block);
+    ret->kind.tag = KOOPA_RVT_BRANCH;
+    ret->kind.data.branch.cond = (koopa_raw_value_t)exp->to_koopa();
+    koopa_raw_basic_block_data_t *true_block =
+        new koopa_raw_basic_block_data_t();
+    true_block->name = "%while_body";
+    true_block->params = slice(KOOPA_RSIK_VALUE);
+    true_block->used_by = slice(KOOPA_RSIK_VALUE);
+    ret->kind.data.branch.true_bb = (koopa_raw_basic_block_t)true_block;
+    ret->kind.data.branch.true_args = slice(KOOPA_RSIK_VALUE);
+    koopa_raw_basic_block_data_t *end_block =
+        new koopa_raw_basic_block_data_t();
+    end_block->name = "%end";
+    end_block->params = slice(KOOPA_RSIK_VALUE);
+    end_block->used_by = slice(KOOPA_RSIK_VALUE);
+    ret->kind.data.branch.false_bb = (koopa_raw_basic_block_t)end_block;
+    ret->kind.data.branch.false_args = slice(KOOPA_RSIK_VALUE);
+    loop_manager.addWhile(cond_block, end_block);
+    block_manager.addInst(ret);
+    block_manager.newBlock(true_block);
+    stmt->to_koopa();
+    block_manager.addInst(jump_value(cond_block));
+    block_manager.newBlock(end_block);
+    loop_manager.delWhile();
+  } else if (type == Break) {
+    if (loop_manager.getTail() == nullptr) {
+      std::cout << "break not in loop" << std::endl;
+      assert(false);
+    }
+    block_manager.addInst(jump_value(loop_manager.getTail()));
+  } else if (type == Continue) {
+    if (loop_manager.getHead() == nullptr) {
+      std::cout << "continue not in loop" << std::endl;
+      assert(false);
+    }
+    block_manager.addInst(jump_value(loop_manager.getHead()));
   }
   return ret;
 }

@@ -1,8 +1,8 @@
 #include "utils.h"
 #include <assert.h>
 #include <cstring>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 
 void SymbolList::addSymbol(std::string symbol, Value value) {
   symbol_list_vector.back()[symbol] = value;
@@ -28,20 +28,6 @@ void BlockManager::init(std::vector<const void *> *block_list_vector) {
   this->block_list_vector = block_list_vector;
 }
 
-bool BlockManager::checkBlock() {
-  if (block_list_vector->size() > 0 && tmp_inst_list.size() > 0) {
-    for (size_t i = 0; i < tmp_inst_list.size(); i++) {
-      koopa_raw_value_t inst = (koopa_raw_value_t)tmp_inst_list[i];
-      if (inst->kind.tag == KOOPA_RVT_RETURN ||
-          inst->kind.tag == KOOPA_RVT_JUMP ||
-          inst->kind.tag == KOOPA_RVT_BRANCH) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
 void BlockManager::delBlock() {
   if (block_list_vector->size() > 0) {
     if (tmp_inst_list.size() > 0) {
@@ -61,9 +47,6 @@ void BlockManager::delBlock() {
       }
       tmp_inst_list.clear();
     }
-    else {
-      block_list_vector->pop_back();
-    }
   }
 }
 
@@ -75,6 +58,60 @@ void BlockManager::newBlock(koopa_raw_basic_block_data_t *basic_block) {
 }
 
 void BlockManager::addInst(const void *inst) { tmp_inst_list.push_back(inst); }
+
+void BlockManager::delUnreachableBlock() {
+  std::map<koopa_raw_basic_block_t, bool> reachable;
+  if (block_list_vector->size() > 0) {
+    for (size_t i = 0; i < block_list_vector->size(); i++) {
+      auto block = (koopa_raw_basic_block_data_t *)block_list_vector->at(i);
+      reachable[block] = false;
+      if (i == 0)
+        reachable[block] = true;
+    }
+    for (size_t i = 0; i < block_list_vector->size(); i++) {
+      auto block = (koopa_raw_basic_block_data_t *)block_list_vector->at(i);
+      for (size_t j = 0; j < block->insts.len; j++) {
+        auto inst = (koopa_raw_value_t)block->insts.buffer[j];
+        if (inst->kind.tag == KOOPA_RVT_JUMP) {
+          reachable[inst->kind.data.jump.target] = true;
+        } else if (inst->kind.tag == KOOPA_RVT_BRANCH) {
+          reachable[inst->kind.data.branch.true_bb] = true;
+          reachable[inst->kind.data.branch.false_bb] = true;
+        }
+      }
+    }
+    for (size_t i = 0; i < block_list_vector->size(); i++) {
+      auto block = (koopa_raw_basic_block_data_t *)block_list_vector->at(i);
+      if (!reachable[block]) {
+        block_list_vector->erase(block_list_vector->begin() + i);
+        i--;
+      }
+    }
+  }
+}
+
+void LoopManager::addWhile(koopa_raw_basic_block_t head,
+                           koopa_raw_basic_block_t tail) {
+  while_list.push_back(While(head, tail));
+}
+
+void LoopManager::delWhile() { while_list.pop_back(); }
+
+koopa_raw_basic_block_t LoopManager::getHead() {
+  if (while_list.size() == 0) {
+    return nullptr;
+  } else {
+    return while_list.back().head;
+  }
+}
+
+koopa_raw_basic_block_t LoopManager::getTail() {
+  if (while_list.size() == 0) {
+    return nullptr;
+  } else {
+    return while_list.back().tail;
+  }
+}
 
 koopa_raw_slice_t slice(koopa_raw_slice_item_kind_t kind) {
   koopa_raw_slice_t ret;

@@ -43,6 +43,9 @@ EqOP          [!=]=
 "const"         { return CONST; }
 "if"            { return IF; }
 "else"          { return ELSE; }
+"while"         { return WHILE; }
+"break"         { return BREAK; }
+"continue"      { return CONTINUE; }
 
 "&&"            { yylval.str_val = new string(yytext); return AND; }
 "||"            { yylval.str_val = new string(yytext); return OR; }

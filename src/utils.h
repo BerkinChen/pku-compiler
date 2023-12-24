@@ -42,7 +42,24 @@ public:
   void newBlock(koopa_raw_basic_block_data_t *basic_block);
   void delBlock();
   void addInst(const void *inst);
-  bool checkBlock();
+  void delUnreachableBlock();
+};
+
+class LoopManager {
+private:
+  struct While {
+    koopa_raw_basic_block_t head;
+    koopa_raw_basic_block_t tail;
+    While(koopa_raw_basic_block_t head, koopa_raw_basic_block_t tail)
+        : head(head), tail(tail) {}
+  };
+  std::vector<While> while_list;
+
+public:
+  void addWhile(koopa_raw_basic_block_t head, koopa_raw_basic_block_t tail);
+  void delWhile();
+  koopa_raw_basic_block_t getHead();
+  koopa_raw_basic_block_t getTail();
 };
 
 koopa_raw_slice_t slice(koopa_raw_slice_item_kind_t kind = KOOPA_RSIK_UNKNOWN);
@@ -56,6 +73,5 @@ koopa_raw_type_t type_kind(koopa_raw_type_tag_t tag);
 koopa_raw_type_t pointer_type_kind(koopa_raw_type_tag_t tag);
 
 koopa_raw_value_data *jump_value(koopa_raw_basic_block_t tar);
-
 
 #endif // UTILS_H

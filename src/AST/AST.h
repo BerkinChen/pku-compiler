@@ -1,14 +1,17 @@
 #ifndef AST_H
 #define AST_H
 
+#include <cstring>
 #include <memory>
 #include <string>
+#include <cassert>
 #include <vector>
 
 #include "utils.h"
 
 static SymbolList symbol_list;
 static BlockManager block_manager;
+static LoopManager loop_manager;
 class BaseAST {
 public:
   virtual ~BaseAST() = default;
@@ -59,13 +62,13 @@ public:
 
 class StmtAST : public BaseAST {
 public:
-  enum StmtType { Exp, Assign, Block, Return, Empty, If };
+  enum StmtType { Exp, Assign, Block, Return, Empty, If, While, Break, Continue};
   StmtType type;
   std::unique_ptr<BaseAST> exp;
-  std::unique_ptr<BaseAST> lval;
+  std::unique_ptr<BaseAST> stmt;
   StmtAST(StmtType type);
   StmtAST(std::unique_ptr<BaseAST> &exp, StmtType type);
-  StmtAST(std::unique_ptr<BaseAST> &lval, std::unique_ptr<BaseAST> &exp,
+  StmtAST(std::unique_ptr<BaseAST> &stmt, std::unique_ptr<BaseAST> &exp,
           StmtType type);
   void *to_koopa() const override;
 };

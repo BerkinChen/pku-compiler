@@ -8,8 +8,8 @@
 - [x] lv3
 - [x] lv4
 - [x] lv5
-- [ ] lv6
-- [ ] lv7
+- [x] lv6
+- [x] lv7
 - [ ] lv8
 - [ ] lv9
 
@@ -202,3 +202,42 @@ if (lhs == 1) {
   // do nothing
 }
 ```
+
+## Lv7
+### while处理
+while定义三个基本块，分别是入口块（条件块），循环主体（循环块）和结束块，从当前block默认跳转到入口块，入口块根据条件跳转到循环块或者结束块，循环块执行完毕后跳转到入口块，结束块也就是后续的block
+```c++
+koopa_raw_basic_block_data_t *cond_block =
+        new koopa_raw_basic_block_data_t();
+    cond_block->name = "%while_entry";
+    cond_block->params = slice(KOOPA_RSIK_VALUE);
+    cond_block->used_by = slice(KOOPA_RSIK_VALUE);
+    block_manager.addInst(jump_value(cond_block));
+    block_manager.newBlock(cond_block);
+    ret->kind.tag = KOOPA_RVT_BRANCH;
+    ret->kind.data.branch.cond = (koopa_raw_value_t)exp->to_koopa();
+    koopa_raw_basic_block_data_t *true_block =
+        new koopa_raw_basic_block_data_t();
+    true_block->name = "%while_body";
+    true_block->params = slice(KOOPA_RSIK_VALUE);
+    true_block->used_by = slice(KOOPA_RSIK_VALUE);
+    ret->kind.data.branch.true_bb = (koopa_raw_basic_block_t)true_block;
+    ret->kind.data.branch.true_args = slice(KOOPA_RSIK_VALUE);
+    koopa_raw_basic_block_data_t *end_block =
+        new koopa_raw_basic_block_data_t();
+    end_block->name = "%end";
+    end_block->params = slice(KOOPA_RSIK_VALUE);
+    end_block->used_by = slice(KOOPA_RSIK_VALUE);
+    ret->kind.data.branch.false_bb = (koopa_raw_basic_block_t)end_block;
+    ret->kind.data.branch.false_args = slice(KOOPA_RSIK_VALUE);
+    loop_manager.addWhile(cond_block, end_block);
+    block_manager.addInst(ret);
+    block_manager.newBlock(true_block);
+    stmt->to_koopa();
+    block_manager.addInst(jump_value(cond_block));
+    block_manager.newBlock(end_block);
+    loop_manager.delWhile();
+```
+
+### break/continue处理
+设计一个栈结构管理当前的循环，记录当前循环的开头和结尾，break和continue的处理就是插入跳转到对应的位置的指令
