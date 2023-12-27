@@ -102,10 +102,10 @@ FuncDef
 
 BType
   : INT {
-    $$ = new FuncTypeAST("int");
+    $$ = new BTypeAST("int");
   }
   | VOID {
-    $$ = new FuncTypeAST("void");
+    $$ = new BTypeAST("void");
   }
   ;
 
