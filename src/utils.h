@@ -6,17 +6,21 @@
 #include <string>
 #include <vector>
 
-enum ValueType { Const, Var };
+enum ValueType { Const, Var, Func };
 struct Value {
   ValueType type;
   union SymbolListValue {
     int const_value;
     koopa_raw_value_t var_value;
+    koopa_raw_function_t func_value;
   } data;
   Value() = default;
   Value(ValueType type, int value) : type(type) { data.const_value = value; }
   Value(ValueType type, koopa_raw_value_t value) : type(type) {
     data.var_value = value;
+  }
+  Value(ValueType type, koopa_raw_function_t value) : type(type) {
+    data.func_value = value;
   }
 };
 
@@ -43,6 +47,7 @@ public:
   void delBlock();
   void addInst(const void *inst);
   void delUnreachableBlock();
+  bool checkBlock();
 };
 
 class LoopManager {
@@ -73,5 +78,9 @@ koopa_raw_type_t type_kind(koopa_raw_type_tag_t tag);
 koopa_raw_type_t pointer_type_kind(koopa_raw_type_tag_t tag);
 
 koopa_raw_value_data *jump_value(koopa_raw_basic_block_t tar);
+
+koopa_raw_value_data *ret_value(koopa_raw_type_tag_t tag);
+
+
 
 #endif // UTILS_H

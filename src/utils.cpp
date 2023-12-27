@@ -90,6 +90,21 @@ void BlockManager::delUnreachableBlock() {
   }
 }
 
+bool BlockManager::checkBlock() {
+  if (block_list_vector->size() > 0) {
+    auto block = (koopa_raw_basic_block_data_t *)block_list_vector->back();
+    if (block->insts.buffer) {
+      for (size_t i = 0; i < block->insts.len; i++) {
+        auto inst = (koopa_raw_value_t)block->insts.buffer[i];
+        if (inst->kind.tag == KOOPA_RVT_RETURN) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 void LoopManager::addWhile(koopa_raw_basic_block_t head,
                            koopa_raw_basic_block_t tail) {
   while_list.push_back(While(head, tail));
@@ -162,4 +177,24 @@ koopa_raw_value_data *jump_value(koopa_raw_basic_block_t tar) {
   jump->kind.data.jump.args = slice(KOOPA_RSIK_VALUE);
   jump->kind.data.jump.target = tar;
   return jump;
+}
+
+koopa_raw_value_data *ret_value(koopa_raw_type_tag_t tag) {
+  koopa_raw_value_data *ret = new koopa_raw_value_data_t();
+  ret->ty = type_kind(KOOPA_RTT_UNIT);
+  ret->name = nullptr;
+  ret->used_by = slice(KOOPA_RSIK_VALUE);
+  ret->kind.tag = KOOPA_RVT_RETURN;
+  if (tag == KOOPA_RTT_UNIT) {
+    ret->kind.data.ret.value = nullptr;
+  } else {
+    koopa_raw_value_data *zero = new koopa_raw_value_data_t();
+    zero->ty = type_kind(KOOPA_RTT_INT32);
+    zero->name = nullptr;
+    zero->used_by = slice(KOOPA_RSIK_VALUE);
+    zero->kind.tag = KOOPA_RVT_INTEGER;
+    zero->kind.data.integer.value = 0;
+    ret->kind.data.ret.value = zero;
+  }
+  return ret;
 }

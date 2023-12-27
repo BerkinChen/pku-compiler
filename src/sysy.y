@@ -9,6 +9,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <cassert>
 #include <cstring>
 #include "AST/AST.h"
 
@@ -38,43 +39,99 @@ using namespace std;
 
 // lexer 返回的所有 token 种类的声明
 // 注意 IDENT 和 INT_CONST 会返回 token 的值, 分别对应 str_val 和 int_val
-%token INT RETURN CONST IF ELSE WHILE BREAK CONTINUE
+%token INT VOID RETURN CONST IF ELSE WHILE BREAK CONTINUE
 %token <str_val> IDENT EQOP RELOP AND OR
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <ast_val> CompUnit FuncDef FuncType Block BlockItem Stmt Decl BType
+%type <ast_val> CompUnit FuncDef Block BlockItem Stmt Decl BType If Def
 %type <ast_val> Exp PrimaryExp UnaryExp AddExp MulExp RelExp EqExp LAndExp LOrExp Number LVal
 %type <ast_val> ConstDecl ConstDef ConstInitVal ConstExp
-%type <ast_val> VarDecl VarDef InitVal
-%type <ast_val> If
-%type <ast_vec> BlockArray ConstDefArray VarDefArray
+%type <ast_val> VarDecl VarDef InitVal FuncFParam FuncRParam
+%type <ast_vec> BlockArray ConstDefArray VarDefArray DefArray
+%type <ast_vec> FuncFParamArray FuncRParamArray
 %type <str_val> UNARYOP MULOP ADDOP
 
 %%
 
-// 开始符, CompUnit ::= FuncDef, 大括号后声明了解析完成后 parser 要做的事情
 CompUnit
-  : FuncDef {
-    auto func_def = std::unique_ptr<BaseAST>($1);
-    ast = std::unique_ptr<BaseAST>(new CompUnitAST(func_def));
+  : DefArray {
+    auto defs = std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>>($1);
+    ast = std::unique_ptr<BaseAST>(new CompUnitAST(defs));
   }
   ;
 
-// FuncDef ::= FuncType IDENT '(' ')' Block;
-// $$ 表示非终结符的返回值, 我们可以通过给这个符号赋值的方法来返回结果
+DefArray
+  : Def DefArray {
+    auto vec = (std::vector<std::unique_ptr<BaseAST>>*)($2);
+    auto def = std::unique_ptr<BaseAST>($1);
+    vec->push_back(std::move(def));
+    $$ = vec;
+  }
+  | Def {
+    //std::cout << "FuncDef" << std::endl;
+    auto vec = new std::vector<std::unique_ptr<BaseAST>>();
+    auto def = std::unique_ptr<BaseAST>($1);
+    vec->push_back(std::move(def));
+    $$ = vec;
+  }
+  ;
+
+Def 
+  : FuncDef {
+    auto funcdef = std::unique_ptr<BaseAST>($1);
+    $$ = new DefAST(funcdef, DefAST::DefType::FuncDef);
+  } | ConstDecl {
+    auto globaconstdef = std::unique_ptr<BaseAST>($1);
+    $$ = new DefAST(globaconstdef, DefAST::DefType::ConstDef);
+  } | VarDecl {
+    auto globavardef = std::unique_ptr<BaseAST>($1);
+    $$ = new DefAST(globavardef, DefAST::DefType::VarDef);
+  };
+
 FuncDef
-  : FuncType IDENT '(' ')' Block {
+  : BType IDENT '(' FuncFParamArray ')' Block {
+    //std::cout << "FuncDef" << std::endl;
     auto func_type = std::unique_ptr<BaseAST>($1);
     auto ident = std::unique_ptr<std::string>($2);
-    auto block = std::unique_ptr<BaseAST>($5);
-    $$ = new FuncDefAST(func_type, ident->c_str(), block);
+    auto func_fparam_array = std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>>($4);
+    auto block = std::unique_ptr<BaseAST>($6);
+    $$ = new FuncDefAST(func_type, ident->c_str(), func_fparam_array, block);
   }
   ;
 
-FuncType
+BType
   : INT {
     $$ = new FuncTypeAST("int");
+  }
+  | VOID {
+    $$ = new FuncTypeAST("void");
+  }
+  ;
+
+FuncFParamArray
+  : FuncFParam ',' FuncFParamArray {
+    auto vec = (std::vector<std::unique_ptr<BaseAST>>*)($3);
+    auto func_fparam = std::unique_ptr<BaseAST>($1);
+    vec->push_back(std::move(func_fparam));
+    $$ = vec;
+  }
+  | FuncFParam {
+    auto vec = new std::vector<std::unique_ptr<BaseAST>> ();
+    auto func_fparam = std::unique_ptr<BaseAST>($1);
+    vec->push_back(std::move(func_fparam));
+    $$ = vec;
+  }
+  | {
+    $$ = new std::vector<std::unique_ptr<BaseAST>> ();
+  }
+  ;
+
+FuncFParam
+  : BType IDENT {
+    auto btype = std::unique_ptr<BaseAST>($1);
+    auto ident = std::unique_ptr<std::string>($2);
+    $$ = new FuncFParamAST(btype, ident->c_str());
   }
   ;
 
@@ -129,14 +186,14 @@ Stmt
   | RETURN ';' {
     $$ = new StmtAST(StmtAST::StmtType::Return);
   }
+  | If {
+    auto exp = std::unique_ptr<BaseAST>($1);
+    $$ = new StmtAST(exp, StmtAST::StmtType::If);
+  }
   | If ELSE Stmt {
     auto exp = std::unique_ptr<BaseAST>($1);
     auto stmt = std::unique_ptr<BaseAST>($3);
     $$ = new StmtAST(stmt, exp, StmtAST::StmtType::If);
-  }
-  | If {
-    auto exp = std::unique_ptr<BaseAST>($1);
-    $$ = new StmtAST(exp, StmtAST::StmtType::If);
   }
   | WHILE '(' Exp ')' Stmt {
     auto exp = std::unique_ptr<BaseAST>($3);
@@ -181,11 +238,6 @@ ConstDefArray
     auto const_def = std::unique_ptr<BaseAST>($1);
     vec->push_back(std::move(const_def));
     $$ = vec;
-  }
-
-BType
-  : INT {
-    $$ = new BTypeAST("int");
   }
   ;
 
@@ -277,7 +329,32 @@ UnaryExp
     auto unaryexp = std::unique_ptr<BaseAST>($2);
     $$ = new UnaryExpAST(unaryop->c_str(), unaryexp);
   }
+  | IDENT '(' FuncRParamArray ')' {
+    auto ident = std::unique_ptr<std::string>($1);
+    auto func_rparam_array = std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>>($3);
+    $$ = new UnaryExpAST(ident->c_str(), func_rparam_array);
+  }
   ;
+
+FuncRParamArray
+  : FuncRParam ',' FuncRParamArray {
+    auto vec = (std::vector<std::unique_ptr<BaseAST>>*)($3);
+    auto func_rparam = std::unique_ptr<BaseAST>($1);
+    vec->push_back(std::move(func_rparam));
+    $$ = vec;
+  }
+  | FuncRParam {
+    auto vec = new std::vector<std::unique_ptr<BaseAST>> ();
+    auto func_rparam = std::unique_ptr<BaseAST>($1);
+    vec->push_back(std::move(func_rparam));
+    $$ = vec;
+  }
+  | {
+    $$ = new std::vector<std::unique_ptr<BaseAST>> ();
+  }
+  ;
+
+FuncRParam : Exp;
 
 UNARYOP :
   '-' {

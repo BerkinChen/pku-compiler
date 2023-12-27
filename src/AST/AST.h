@@ -1,10 +1,10 @@
 #ifndef AST_H
 #define AST_H
 
+#include <cassert>
 #include <cstring>
 #include <memory>
 #include <string>
-#include <cassert>
 #include <vector>
 
 #include "utils.h"
@@ -17,18 +17,41 @@ public:
   virtual ~BaseAST() = default;
   virtual void *to_left_value() const { return nullptr; }
   virtual void *to_koopa() const { return nullptr; }
-  virtual void *to_koopa(koopa_raw_basic_block_t end_block) const { return nullptr; }
+  virtual void *to_koopa(int index) const { return nullptr; }
+  virtual void *to_koopa(std::vector<const void *> &global_var) const {
+    return nullptr;
+  }
+  virtual void *to_koopa(koopa_raw_basic_block_t end_block) const {
+    return nullptr;
+  }
   virtual void *to_koopa(koopa_raw_type_t type) const { return nullptr; }
+  virtual void *to_koopa(std::vector<const void *> &func,
+                         std::vector<const void *> &value) const {
+    return nullptr;
+  }
+  virtual void *to_koopa(std::vector<const void *> &global_var,
+                         koopa_raw_type_t type) const {
+    return nullptr;
+  }
   virtual int cal_value() const { return 0; }
 };
 
 class CompUnitAST : public BaseAST {
 public:
-  std::unique_ptr<BaseAST> func_def;
-
-  CompUnitAST(std::unique_ptr<BaseAST> &func_def);
-
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> def_vec;
+  CompUnitAST(std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> &def_vec);
+  void load_lib_func(std::vector<const void *> &lib_func_vec) const;
   void *to_koopa() const override;
+};
+
+class DefAST : public BaseAST {
+public:
+  enum DefType { FuncDef, ConstDef, VarDef };
+  DefType type;
+  std::unique_ptr<BaseAST> def;
+  DefAST(std::unique_ptr<BaseAST> &def, DefType type);
+  void *to_koopa(std::vector<const void *> &func,
+                 std::vector<const void *> &value) const override;
 };
 
 class FuncDefAST : public BaseAST {
@@ -36,20 +59,43 @@ public:
   std::unique_ptr<BaseAST> func_type;
   std::string ident;
   std::unique_ptr<BaseAST> block;
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> param_vec;
 
   FuncDefAST(std::unique_ptr<BaseAST> &func_type, const char *ident,
+             std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> &param_vec,
              std::unique_ptr<BaseAST> &block);
 
   void *to_koopa() const override;
 };
 
-class FuncTypeAST : public BaseAST {
+class GlobalConstDefAST : public BaseAST {
 public:
-  std::string type;
-  FuncTypeAST(const char *type);
+  std::unique_ptr<BaseAST> const_type;
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> ConstDef_vec;
+  GlobalConstDefAST(
+      std::unique_ptr<BaseAST> &const_type,
+      std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> &ConstDef_vec);
   void *to_koopa() const override;
 };
 
+class GlobalVarDefAST : public BaseAST {
+public:
+  std::unique_ptr<BaseAST> var_type;
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> VarDef_vec;
+  GlobalVarDefAST(
+      std::unique_ptr<BaseAST> &var_type,
+      std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> &VarDef_vec);
+  void *to_koopa(std::vector<const void *> &global_var) const override;
+};
+
+class FuncFParamAST : public BaseAST {
+public:
+  std::unique_ptr<BaseAST> param_type;
+  std::string ident;
+  FuncFParamAST(std::unique_ptr<BaseAST> &param_type, const char *ident);
+  void *to_koopa() const override;
+  void *to_koopa(int index) const override;
+};
 class BlockAST : public BaseAST {
 public:
   enum { Item, Empty } type;
@@ -62,7 +108,17 @@ public:
 
 class StmtAST : public BaseAST {
 public:
-  enum StmtType { Exp, Assign, Block, Return, Empty, If, While, Break, Continue};
+  enum StmtType {
+    Exp,
+    Assign,
+    Block,
+    Return,
+    Empty,
+    If,
+    While,
+    Break,
+    Continue
+  };
   StmtType type;
   std::unique_ptr<BaseAST> exp;
   std::unique_ptr<BaseAST> stmt;
@@ -114,6 +170,7 @@ public:
       std::unique_ptr<BaseAST> &var_type,
       std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> &VarDef_vec);
   void *to_koopa() const override;
+  void *to_koopa(std::vector<const void *> &global_var) const override;
 };
 
 class VarDefAST : public BaseAST {
@@ -124,6 +181,8 @@ public:
   VarDefAST(const char *ident, std::unique_ptr<BaseAST> &exp);
   VarDefAST(const char *ident);
   void *to_koopa(koopa_raw_type_t type) const override;
+  void *to_koopa(std::vector<const void *> &global_var,
+                 koopa_raw_type_t type) const override;
 };
 
 class LValAST : public BaseAST {
@@ -153,11 +212,14 @@ public:
 
 class UnaryExpAST : public BaseAST {
 public:
-  enum { Exp, Op } type;
+  enum { Exp, Op, Call } type;
   std::string op;
   std::unique_ptr<BaseAST> exp;
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> args;
   UnaryExpAST(std::unique_ptr<BaseAST> &exp);
   UnaryExpAST(const char *op, std::unique_ptr<BaseAST> &exp);
+  UnaryExpAST(const char *op,
+              std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> &args);
   void *to_koopa() const override;
   int cal_value() const override;
 };
