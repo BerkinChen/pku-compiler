@@ -416,10 +416,10 @@ void *ConstDeclAST::to_koopa() const {
   return nullptr;
 }
 
-// BTypeAST
-BTypeAST::BTypeAST(const char *type) : type(type) {}
+// TypeAST
+TypeAST::TypeAST(const char *type) : type(type) {}
 
-void *BTypeAST::to_koopa() const {
+void *TypeAST::to_koopa() const {
   if (type == "int")
     return (void *)type_kind(KOOPA_RTT_INT32);
   if (type == "void")
@@ -515,8 +515,7 @@ void *VarDefAST::to_koopa(std::vector<const void *> &global_var,
   if (type == Exp) {
     ret->kind.data.global_alloc.init = (koopa_raw_value_t)exp->to_koopa();
   } else {
-    ret->kind.data.global_alloc.init =
-        (koopa_raw_value_t)NumberAST(0).to_koopa();
+    ret->kind.data.global_alloc.init = zero_init(var_type->tag);
   }
   return nullptr;
 }

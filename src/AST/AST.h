@@ -147,10 +147,10 @@ public:
   void *to_koopa() const override;
 };
 
-class BTypeAST : public BaseAST {
+class TypeAST : public BaseAST {
 public:
   std::string type;
-  BTypeAST(const char *type);
+  TypeAST(const char *type);
   void *to_koopa() const override;
 };
 

@@ -44,7 +44,7 @@ using namespace std;
 %token <int_val> INT_CONST
 
 // 非终结符的类型定义
-%type <ast_val> CompUnit FuncDef Block BlockItem Stmt Decl BType If Def
+%type <ast_val> CompUnit FuncDef Block BlockItem Stmt Decl Type If Def
 %type <ast_val> Exp PrimaryExp UnaryExp AddExp MulExp RelExp EqExp LAndExp LOrExp Number LVal
 %type <ast_val> ConstDecl ConstDef ConstInitVal ConstExp
 %type <ast_val> VarDecl VarDef InitVal FuncFParam FuncRParam
@@ -90,7 +90,7 @@ Def
   };
 
 FuncDef
-  : BType IDENT '(' FuncFParamArray ')' Block {
+  : Type IDENT '(' FuncFParamArray ')' Block {
     //std::cout << "FuncDef" << std::endl;
     auto func_type = std::unique_ptr<BaseAST>($1);
     auto ident = std::unique_ptr<std::string>($2);
@@ -100,12 +100,12 @@ FuncDef
   }
   ;
 
-BType
+Type
   : INT {
-    $$ = new BTypeAST("int");
+    $$ = new TypeAST("int");
   }
   | VOID {
-    $$ = new BTypeAST("void");
+    $$ = new TypeAST("void");
   }
   ;
 
@@ -128,10 +128,10 @@ FuncFParamArray
   ;
 
 FuncFParam
-  : BType IDENT {
-    auto btype = std::unique_ptr<BaseAST>($1);
+  : Type IDENT {
+    auto type = std::unique_ptr<BaseAST>($1);
     auto ident = std::unique_ptr<std::string>($2);
-    $$ = new FuncFParamAST(btype, ident->c_str());
+    $$ = new FuncFParamAST(type, ident->c_str());
   }
   ;
 
@@ -219,10 +219,10 @@ If
 Decl : ConstDecl | VarDecl;
 
 ConstDecl
-  : CONST BType ConstDefArray ';' {
-    auto btype = std::unique_ptr<BaseAST>($2);
+  : CONST Type ConstDefArray ';' {
+    auto type = std::unique_ptr<BaseAST>($2);
     auto const_defs = std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>>($3);
-    $$ = new ConstDeclAST(btype, const_defs);
+    $$ = new ConstDeclAST(type, const_defs);
   }
   ;
 
@@ -254,10 +254,10 @@ ConstInitVal : ConstExp;
 ConstExp : Exp;
 
 VarDecl
-  : BType VarDefArray ';' {
-    auto btype = std::unique_ptr<BaseAST>($1);
+  : Type VarDefArray ';' {
+    auto type = std::unique_ptr<BaseAST>($1);
     auto var_defs = std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>>($2);
-    $$ = new VarDeclAST(btype, var_defs);
+    $$ = new VarDeclAST(type, var_defs);
   }
   ;
 

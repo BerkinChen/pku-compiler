@@ -198,3 +198,12 @@ koopa_raw_value_data *ret_value(koopa_raw_type_tag_t tag) {
   }
   return ret;
 }
+
+koopa_raw_value_data *zero_init(koopa_raw_type_tag_t tag) {
+  koopa_raw_value_data *ret = new koopa_raw_value_data_t();
+  ret->ty = type_kind(tag);
+  ret->name = nullptr;
+  ret->used_by = slice(KOOPA_RSIK_VALUE);
+  ret->kind.tag = KOOPA_RVT_ZERO_INIT;
+  return ret;
+}

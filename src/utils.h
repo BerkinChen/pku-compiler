@@ -81,6 +81,6 @@ koopa_raw_value_data *jump_value(koopa_raw_basic_block_t tar);
 
 koopa_raw_value_data *ret_value(koopa_raw_type_tag_t tag);
 
-
+koopa_raw_value_data *zero_init(koopa_raw_type_tag_t tag);
 
 #endif // UTILS_H
