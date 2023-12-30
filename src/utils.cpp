@@ -168,6 +168,14 @@ koopa_raw_type_t pointer_type_kind(koopa_raw_type_tag_t tag) {
   return (koopa_raw_type_t)ret;
 }
 
+koopa_raw_type_t array_type_kind(koopa_raw_type_tag_t tag, size_t size) {
+  koopa_raw_type_kind_t *ret = new koopa_raw_type_kind_t();
+  ret->tag = KOOPA_RTT_ARRAY;
+  ret->data.array.base = type_kind(tag);
+  ret->data.array.len = size;
+  return (koopa_raw_type_t)ret;
+}
+
 koopa_raw_value_data *jump_value(koopa_raw_basic_block_t tar) {
   koopa_raw_value_data *jump = new koopa_raw_value_data_t();
   jump->ty = type_kind(KOOPA_RTT_UNIT);

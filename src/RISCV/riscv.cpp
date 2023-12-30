@@ -336,10 +336,14 @@ void RISCV_Builder::raw_visit(const koopa_raw_call_t &c_value, int addr) {
 void RISCV_Builder::global_alloc(const koopa_raw_value_t &g_value) {
   out << "\n  .global " + std::string(g_value->name + 1) + "\n";
   out << std::string(g_value->name + 1) + ":\n";
-  out << "  .word " +
-             std::to_string(g_value->kind.data.global_alloc.init->kind.data
-                                .integer.value) +
-             "\n";
+  if (g_value->kind.data.global_alloc.init->kind.tag == KOOPA_RVT_INTEGER)
+    out << "  .word " +
+              std::to_string(g_value->kind.data.global_alloc.init->kind.data
+                                  .integer.value) +
+              "\n";
+  if (g_value->kind.data.global_alloc.init->kind.tag == KOOPA_RVT_ZERO_INIT) {
+    out << "  .zero 4\n";
+  }
 }
 
 void RISCV_Builder::build(koopa_raw_program_t raw) {

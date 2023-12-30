@@ -48,7 +48,7 @@ using namespace std;
 %type <ast_val> Exp PrimaryExp UnaryExp AddExp MulExp RelExp EqExp LAndExp LOrExp Number LVal
 %type <ast_val> ConstDecl ConstDef ConstInitVal ConstExp
 %type <ast_val> VarDecl VarDef InitVal FuncFParam FuncRParam
-%type <ast_vec> BlockArray ConstDefArray VarDefArray DefArray
+%type <ast_vec> BlockArray ConstDefArray VarDefArray DefArray ConstExpArray ExpArray
 %type <ast_vec> FuncFParamArray FuncRParamArray
 %type <str_val> UNARYOP MULOP ADDOP
 
@@ -69,7 +69,6 @@ DefArray
     $$ = vec;
   }
   | Def {
-    //std::cout << "FuncDef" << std::endl;
     auto vec = new std::vector<std::unique_ptr<BaseAST>>();
     auto def = std::unique_ptr<BaseAST>($1);
     vec->push_back(std::move(def));
@@ -91,7 +90,6 @@ Def
 
 FuncDef
   : Type IDENT '(' FuncFParamArray ')' Block {
-    //std::cout << "FuncDef" << std::endl;
     auto func_type = std::unique_ptr<BaseAST>($1);
     auto ident = std::unique_ptr<std::string>($2);
     auto func_fparam_array = std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>>($4);
@@ -247,9 +245,39 @@ ConstDef
     auto const_init_val = std::unique_ptr<BaseAST>($3);
     $$ = new ConstDefAST(ident->c_str(), const_init_val);
   }
+  | IDENT '[' ConstExp ']' '=' ConstInitVal {
+    auto ident = std::unique_ptr<std::string>($1);
+    auto const_exp = std::unique_ptr<BaseAST>($3);
+    auto const_init_val = std::unique_ptr<BaseAST>($6);
+    $$ = new ConstDefAST(ident->c_str(), const_exp, const_init_val);
+  }
   ;
 
-ConstInitVal : ConstExp;
+ConstInitVal 
+  : ConstExp
+  | '{' ConstExpArray '}' {
+    auto const_init_val_array = std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>>($2);
+    $$ = new ConstInitValAST(const_init_val_array);
+  }
+  | '{' '}' {
+    $$ = new ConstInitValAST();
+  }
+  ;
+
+ConstExpArray
+  : ConstExp ',' ConstExpArray {
+    auto vec = (std::vector<std::unique_ptr<BaseAST>>*)($3);
+    auto const_exp = std::unique_ptr<BaseAST>($1);
+    vec->push_back(std::move(const_exp));
+    $$ = vec;
+  }
+  | ConstExp {
+    auto vec = new std::vector<std::unique_ptr<BaseAST>> ();
+    auto const_exp = std::unique_ptr<BaseAST>($1);
+    vec->push_back(std::move(const_exp));
+    $$ = vec;
+  }
+  ;
 
 ConstExp : Exp;
 
@@ -280,20 +308,60 @@ VarDef
   : IDENT '=' InitVal {
     auto ident = std::unique_ptr<std::string>($1);
     auto init_val = std::unique_ptr<BaseAST>($3);
-    $$ = new VarDefAST(ident->c_str(), init_val);
+    $$ = new VarDefAST(ident->c_str(), init_val, VarDefAST::VarDefType::Exp);
   }
   | IDENT {
     auto ident = std::unique_ptr<std::string>($1);
-    $$ = new VarDefAST(ident->c_str());
+    $$ = new VarDefAST(ident->c_str(), VarDefAST::VarDefType::Exp);
+  }
+  | IDENT '[' ConstExp ']' {
+    auto ident = std::unique_ptr<std::string>($1);
+    auto const_exp = std::unique_ptr<BaseAST>($3);
+    $$ = new VarDefAST(ident->c_str(), const_exp, VarDefAST::VarDefType::Array);
+  }
+  | IDENT '[' ConstExp ']' '=' InitVal {
+    auto ident = std::unique_ptr<std::string>($1);
+    auto const_exp = std::unique_ptr<BaseAST>($3);
+    auto init_val = std::unique_ptr<BaseAST>($6);
+    $$ = new VarDefAST(ident->c_str(), const_exp, init_val, VarDefAST::VarDefType::Array);
   }
   ;
 
-InitVal : Exp;
+InitVal 
+  : Exp
+  | '{' ExpArray '}' {
+    auto init_val_array = std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>>($2);
+    $$ = new InitValAST(init_val_array);
+  }
+  | '{' '}' {
+    $$ = new InitValAST();
+  }
+  ;
+
+ExpArray
+  : Exp ',' ExpArray {
+    auto vec = (std::vector<std::unique_ptr<BaseAST>>*)($3);
+    auto exp = std::unique_ptr<BaseAST>($1);
+    vec->push_back(std::move(exp));
+    $$ = vec;
+  }
+  | Exp {
+    auto vec = new std::vector<std::unique_ptr<BaseAST>> ();
+    auto exp = std::unique_ptr<BaseAST>($1);
+    vec->push_back(std::move(exp));
+    $$ = vec;
+  }
+  ;
 
 LVal
   : IDENT {
     auto ident = std::unique_ptr<std::string>($1);
     $$ = new LValAST(ident->c_str());
+  }
+  | IDENT '[' Exp ']' {
+    auto ident = std::unique_ptr<std::string>($1);
+    auto exp = std::unique_ptr<BaseAST>($3);
+    $$ = new LValAST(ident->c_str(), exp);
   }
   ;
 

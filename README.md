@@ -255,3 +255,7 @@ koopa_raw_basic_block_data_t *cond_block =
 
 ### 目标代码生成
 主要修改全局变量的处理和函数的调用，对于全局变量，先将地址读到寄存器中，再根据地址读取值。对于函数调用，将参数存放到对应的寄存器中或者栈上，再调用函数，函数返回后将返回值存放到栈上
+
+## Lv9
+### 一维数组
+对于全局数组，采用global alloc和aggregate分配并初始化，对于局部数组，采用alloc分配空间，并通过getelementptr获取对应的地址，再store进行初始化。对于数组的访问，通过getelementptr获取对应的地址，再load获取值或者store赋值

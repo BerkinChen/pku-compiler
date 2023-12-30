@@ -6,18 +6,22 @@
 #include <string>
 #include <vector>
 
-enum ValueType { Const, Var, Func };
+enum ValueType { Const, Var, Func, Array };
 struct Value {
   ValueType type;
   union SymbolListValue {
     int const_value;
     koopa_raw_value_t var_value;
     koopa_raw_function_t func_value;
+    koopa_raw_value_t array_value;
   } data;
   Value() = default;
   Value(ValueType type, int value) : type(type) { data.const_value = value; }
   Value(ValueType type, koopa_raw_value_t value) : type(type) {
-    data.var_value = value;
+    if (type == Var)
+      data.var_value = value;
+    else if (type == Array)
+      data.array_value = value;
   }
   Value(ValueType type, koopa_raw_function_t value) : type(type) {
     data.func_value = value;
@@ -76,6 +80,8 @@ koopa_raw_slice_t slice(const void *data,
 koopa_raw_type_t type_kind(koopa_raw_type_tag_t tag);
 
 koopa_raw_type_t pointer_type_kind(koopa_raw_type_tag_t tag);
+
+koopa_raw_type_t array_type_kind(koopa_raw_type_tag_t tag, size_t size);
 
 koopa_raw_value_data *jump_value(koopa_raw_basic_block_t tar);
 
