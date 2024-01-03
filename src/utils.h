@@ -77,16 +77,16 @@ koopa_raw_slice_t slice(std::vector<const void *> &vec,
 koopa_raw_slice_t slice(const void *data,
                         koopa_raw_slice_item_kind_t kind = KOOPA_RSIK_UNKNOWN);
 
-koopa_raw_type_t type_kind(koopa_raw_type_tag_t tag);
+koopa_raw_type_kind *type_kind(koopa_raw_type_tag_t tag);
 
-koopa_raw_type_t pointer_type_kind(koopa_raw_type_tag_t tag);
+koopa_raw_type_kind *pointer_type_kind(koopa_raw_type_tag_t tag);
 
-koopa_raw_type_t array_type_kind(koopa_raw_type_tag_t tag, size_t size);
+koopa_raw_type_kind *array_type_kind(koopa_raw_type_tag_t tag, size_t size);
 
 koopa_raw_value_data *jump_value(koopa_raw_basic_block_t tar);
 
 koopa_raw_value_data *ret_value(koopa_raw_type_tag_t tag);
 
-koopa_raw_value_data *zero_init(koopa_raw_type_tag_t tag);
+koopa_raw_value_data *zero_init(koopa_raw_type_kind *type);
 
 #endif // UTILS_H
