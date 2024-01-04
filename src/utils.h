@@ -81,7 +81,7 @@ koopa_raw_type_kind *type_kind(koopa_raw_type_tag_t tag);
 
 koopa_raw_type_kind *pointer_type_kind(koopa_raw_type_tag_t tag);
 
-koopa_raw_type_kind *array_type_kind(koopa_raw_type_tag_t tag, size_t size);
+koopa_raw_type_kind *array_type_kind(koopa_raw_type_tag_t tag, std::vector<size_t> size_vec);
 
 koopa_raw_value_data *jump_value(koopa_raw_basic_block_t tar);
 

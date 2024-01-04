@@ -168,12 +168,20 @@ koopa_raw_type_kind *pointer_type_kind(koopa_raw_type_tag_t tag) {
   return ret;
 }
 
-koopa_raw_type_kind *array_type_kind(koopa_raw_type_tag_t tag, size_t size) {
-  koopa_raw_type_kind *ret = new koopa_raw_type_kind();
-  ret->tag = KOOPA_RTT_ARRAY;
-  ret->data.array.base = type_kind(tag);
-  ret->data.array.len = size;
-  return ret;
+koopa_raw_type_kind *array_type_kind(koopa_raw_type_tag_t tag, std::vector<size_t> size_vec) {
+  std::vector<koopa_raw_type_kind *> array_vec;
+  for (size_t i = 0; i < size_vec.size(); i++) {
+    koopa_raw_type_kind *ret = new koopa_raw_type_kind();
+    ret->tag = KOOPA_RTT_ARRAY;
+    ret->data.array.len = size_vec[i];
+    array_vec.push_back(ret);
+  }
+  for (size_t i = 0; i < size_vec.size(); i++) {
+    array_vec[i]->data.array.base = (i == size_vec.size() - 1)
+                                        ? type_kind(tag)
+                                        : (koopa_raw_type_t)array_vec[i + 1];
+  }
+  return array_vec[0];
 }
 
 koopa_raw_value_data *jump_value(koopa_raw_basic_block_t tar) {

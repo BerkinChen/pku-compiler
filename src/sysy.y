@@ -46,10 +46,10 @@ using namespace std;
 // 非终结符的类型定义
 %type <ast_val> CompUnit FuncDef Block BlockItem Stmt Decl Type If Def
 %type <ast_val> Exp PrimaryExp UnaryExp AddExp MulExp RelExp EqExp LAndExp LOrExp Number LVal
-%type <ast_val> ConstDecl ConstDef ConstInitVal ConstExp
+%type <ast_val> ConstDecl ConstDef
 %type <ast_val> VarDecl VarDef InitVal FuncFParam FuncRParam
-%type <ast_vec> BlockArray ConstDefArray VarDefArray DefArray ConstExpArray ExpArray
-%type <ast_vec> FuncFParamArray FuncRParamArray
+%type <ast_vec> BlockArray ConstDefArray VarDefArray DefArray InitValArray
+%type <ast_vec> FuncFParamArray FuncRParamArray IndexArray 
 %type <str_val> UNARYOP MULOP ADDOP
 
 %%
@@ -240,46 +240,18 @@ ConstDefArray
   ;
 
 ConstDef 
-  : IDENT '=' ConstInitVal {
+  : IDENT '=' InitVal {
     auto ident = std::unique_ptr<std::string>($1);
     auto const_init_val = std::unique_ptr<BaseAST>($3);
     $$ = new ConstDefAST(ident->c_str(), const_init_val);
   }
-  | IDENT '[' ConstExp ']' '=' ConstInitVal {
+  | IDENT IndexArray '=' InitVal {
     auto ident = std::unique_ptr<std::string>($1);
-    auto const_exp = std::unique_ptr<BaseAST>($3);
-    auto const_init_val = std::unique_ptr<BaseAST>($6);
-    $$ = new ConstDefAST(ident->c_str(), const_exp, const_init_val);
+    auto index_exp = std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>>($2);
+    auto const_init_val = std::unique_ptr<BaseAST>($4);
+    $$ = new ConstDefAST(ident->c_str(), index_exp, const_init_val);
   }
   ;
-
-ConstInitVal 
-  : ConstExp
-  | '{' ConstExpArray '}' {
-    auto const_init_val_array = std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>>($2);
-    $$ = new ConstInitValAST(const_init_val_array);
-  }
-  | '{' '}' {
-    $$ = new ConstInitValAST();
-  }
-  ;
-
-ConstExpArray
-  : ConstExp ',' ConstExpArray {
-    auto vec = (std::vector<std::unique_ptr<BaseAST>>*)($3);
-    auto const_exp = std::unique_ptr<BaseAST>($1);
-    vec->push_back(std::move(const_exp));
-    $$ = vec;
-  }
-  | ConstExp {
-    auto vec = new std::vector<std::unique_ptr<BaseAST>> ();
-    auto const_exp = std::unique_ptr<BaseAST>($1);
-    vec->push_back(std::move(const_exp));
-    $$ = vec;
-  }
-  ;
-
-ConstExp : Exp;
 
 VarDecl
   : Type VarDefArray ';' {
@@ -314,22 +286,25 @@ VarDef
     auto ident = std::unique_ptr<std::string>($1);
     $$ = new VarDefAST(ident->c_str(), VarDefAST::VarDefType::Exp);
   }
-  | IDENT '[' ConstExp ']' {
+  | IDENT IndexArray {
     auto ident = std::unique_ptr<std::string>($1);
-    auto const_exp = std::unique_ptr<BaseAST>($3);
-    $$ = new VarDefAST(ident->c_str(), const_exp, VarDefAST::VarDefType::Array);
+    auto index_exp = std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>>($2);
+    $$ = new VarDefAST(ident->c_str(), index_exp, VarDefAST::VarDefType::Array);
   }
-  | IDENT '[' ConstExp ']' '=' InitVal {
+  | IDENT IndexArray '=' InitVal {
     auto ident = std::unique_ptr<std::string>($1);
-    auto const_exp = std::unique_ptr<BaseAST>($3);
-    auto init_val = std::unique_ptr<BaseAST>($6);
-    $$ = new VarDefAST(ident->c_str(), const_exp, init_val, VarDefAST::VarDefType::Array);
+    auto index_exp = std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>>($2);
+    auto init_val = std::unique_ptr<BaseAST>($4);
+    $$ = new VarDefAST(ident->c_str(), index_exp, init_val, VarDefAST::VarDefType::Array);
   }
   ;
 
 InitVal 
-  : Exp
-  | '{' ExpArray '}' {
+  : Exp {
+    auto exp = std::unique_ptr<BaseAST>($1);
+    $$ = new InitValAST(exp);
+  }
+  | '{' InitValArray '}' {
     auto init_val_array = std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>>($2);
     $$ = new InitValAST(init_val_array);
   }
@@ -338,14 +313,14 @@ InitVal
   }
   ;
 
-ExpArray
-  : Exp ',' ExpArray {
+InitValArray
+  : InitVal ',' InitValArray {
     auto vec = (std::vector<std::unique_ptr<BaseAST>>*)($3);
     auto exp = std::unique_ptr<BaseAST>($1);
     vec->push_back(std::move(exp));
     $$ = vec;
   }
-  | Exp {
+  | InitVal {
     auto vec = new std::vector<std::unique_ptr<BaseAST>> ();
     auto exp = std::unique_ptr<BaseAST>($1);
     vec->push_back(std::move(exp));
@@ -358,12 +333,29 @@ LVal
     auto ident = std::unique_ptr<std::string>($1);
     $$ = new LValAST(ident->c_str());
   }
-  | IDENT '[' Exp ']' {
+  | IDENT IndexArray {
     auto ident = std::unique_ptr<std::string>($1);
-    auto exp = std::unique_ptr<BaseAST>($3);
+    auto exp = std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>>($2);
     $$ = new LValAST(ident->c_str(), exp);
   }
   ;
+
+IndexArray
+  : '[' Exp ']' {
+    auto exp = std::unique_ptr<BaseAST>($2);
+    auto vec = new std::vector<std::unique_ptr<BaseAST>>();
+    vec->push_back(std::move(exp));
+    $$ = vec;
+  }
+  | IndexArray '[' Exp ']' {
+    auto vec = (std::vector<std::unique_ptr<BaseAST>>*)($1);
+    auto exp = std::unique_ptr<BaseAST>($3);
+    vec->push_back(std::move(exp));
+    $$ = vec;
+  }
+  ;
+
+
 
 Exp
   : LOrExp {
