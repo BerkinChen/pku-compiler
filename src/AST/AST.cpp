@@ -786,18 +786,13 @@ void *VarDefAST::to_koopa(std::vector<const void *> &global_var,
             zero_init(array_type_kind(var_type->tag, size_vec));
       } else {
         initval->preprocess(init_vec, size_vec);
-        if (init_vec.size() != size && init_vec.size() != 0) {
+        if (init_vec.size() != size) {
           std::cout << "array size not match " << init_vec.size() << " " << size
                     << std::endl;
           assert(false);
         }
-        if (init_vec.size() == 0) {
-          ret->kind.data.global_alloc.init =
-              zero_init(array_type_kind(var_type->tag, size_vec));
-        } else {
-          ret->kind.data.global_alloc.init =
-              (koopa_raw_value_t)initval->to_koopa(init_vec, size_vec, 0);
-        }
+        ret->kind.data.global_alloc.init =
+            (koopa_raw_value_t)initval->to_koopa(init_vec, size_vec, 0);
       }
     } else {
       ret->kind.data.global_alloc.init =
@@ -882,6 +877,10 @@ void InitValAST::preprocess(std::vector<const void *> &init_vec,
         sub_vec.push_back(size_vec[i]);
       }
       initval->preprocess(init_vec, sub_vec);
+    } else if (initval->type == Empty) {
+      for (size_t i = 0; i < len_n; i++) {
+        init_vec.push_back(NumberAST(0).to_koopa());
+      }
     }
   }
   int size = 1;
