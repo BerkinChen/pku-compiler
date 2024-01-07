@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-enum ValueType { Const, Var, Func, Array };
+enum ValueType { Const, Var, Func, Array, Pointer};
 struct Value {
   ValueType type;
   union SymbolListValue {
@@ -14,6 +14,7 @@ struct Value {
     koopa_raw_value_t var_value;
     koopa_raw_function_t func_value;
     koopa_raw_value_t array_value;
+    koopa_raw_value_t pointer_value;
   } data;
   Value() = default;
   Value(ValueType type, int value) : type(type) { data.const_value = value; }
@@ -22,6 +23,8 @@ struct Value {
       data.var_value = value;
     else if (type == Array)
       data.array_value = value;
+    else if (type == Pointer)
+      data.pointer_value = value;
   }
   Value(ValueType type, koopa_raw_function_t value) : type(type) {
     data.func_value = value;

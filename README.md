@@ -259,3 +259,11 @@ koopa_raw_basic_block_data_t *cond_block =
 ## Lv9
 ### 一维数组
 对于全局数组，采用global alloc和aggregate分配并初始化，对于局部数组，采用alloc分配空间，并通过getelementptr获取对应的地址，再store进行初始化。对于数组的访问，通过getelementptr获取对应的地址，再load获取值或者store赋值
+
+### 多维数组
+针对多维数组，修改了InitValAST，定义了process函数，通过的递归的方式将多维数组填充为一维的vector，并且中途检查对齐和用0填充，最后再将vector根据数组的维数和大小填充为aggregate value，除了最后一层，每一层的值也都是aggregate value，对于多维数组的访问，根据访问的索引，每次通过getelementptr获取对应的地址，再load获取值或者store赋值
+
+### 数组参数
+由于数组参数的特点，新增了一种指针类型，指针类型和数组类型在传参时较为复杂，例如*[i32, 10]的类型不能给**i32类型的参数赋值，所以需要用getelementptr获取对应的地址，同样对于指针参数，不能使用getelementptr获取对应的地址，所以需要使用getptr来获取对应的地址
+
+### 目标代码生成

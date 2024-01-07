@@ -93,9 +93,16 @@ public:
 
 class FuncFParamAST : public BaseAST {
 public:
+  enum FuncFParamType { Array, Var };
   std::unique_ptr<BaseAST> param_type;
   std::string ident;
-  FuncFParamAST(std::unique_ptr<BaseAST> &param_type, const char *ident);
+  FuncFParamType type;
+  std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> index_array;
+  FuncFParamAST(std::unique_ptr<BaseAST> &param_type, const char *ident, FuncFParamType type);
+  FuncFParamAST(
+      std::unique_ptr<BaseAST> &param_type,
+      std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>> &index_array,
+      const char *ident, FuncFParamType type);
   void *to_koopa() const override;
   void *to_koopa(int index) const override;
 };
@@ -239,6 +246,7 @@ public:
   ExpAST(std::unique_ptr<BaseAST> &add_exp);
   void *to_koopa() const override;
   int cal_value() const override;
+  
 };
 
 class PrimaryExpAST : public BaseAST {

@@ -129,7 +129,18 @@ FuncFParam
   : Type IDENT {
     auto type = std::unique_ptr<BaseAST>($1);
     auto ident = std::unique_ptr<std::string>($2);
-    $$ = new FuncFParamAST(type, ident->c_str());
+    $$ = new FuncFParamAST(type, ident->c_str(), FuncFParamAST::FuncFParamType::Var);
+  }
+  | Type IDENT '[' ']' {
+    auto type = std::unique_ptr<BaseAST>($1);
+    auto ident = std::unique_ptr<std::string>($2);
+    $$ = new FuncFParamAST(type, ident->c_str(), FuncFParamAST::FuncFParamType::Array);
+  }
+  | Type IDENT '[' ']' IndexArray {
+    auto type = std::unique_ptr<BaseAST>($1);
+    auto ident = std::unique_ptr<std::string>($2);
+    auto index_exp = std::unique_ptr<std::vector<std::unique_ptr<BaseAST>>>($5);
+    $$ = new FuncFParamAST(type, index_exp, ident->c_str(), FuncFParamAST::FuncFParamType::Array);
   }
   ;
 
