@@ -199,7 +199,7 @@ void *FuncDefAST::to_koopa() const {
   entry->used_by = slice(KOOPA_RSIK_VALUE);
   symbol_list.newScope();
   block_manager.newBlock(entry);
-  for (size_t i = 0; i < params.size(); i++) {
+  for (int i = 0; i < params.size(); i++) {
     koopa_raw_value_data *allo = new koopa_raw_value_data();
     koopa_raw_type_kind *ty = new koopa_raw_type_kind();
     ty->tag = KOOPA_RTT_POINTER;
@@ -825,18 +825,18 @@ void *InitValAST::to_koopa(std::vector<const void *> &init_vec,
                            std::vector<size_t> size_vec, int level) const {
   std::vector<const void *> *init_val = new std::vector<const void *>();
   if (level == size_vec.size() - 1) {
-    for (size_t i = 0; i < size_vec[level]; i++) {
+    for (int i = 0; i < size_vec[level]; i++) {
       init_val->push_back((*init_vec.begin()));
       init_vec.erase(init_vec.begin());
     }
   } else {
-    for (size_t i = 0; i < size_vec[level]; i++) {
+    for (int i = 0; i < size_vec[level]; i++) {
       init_val->push_back(to_koopa(init_vec, size_vec, level + 1));
     }
   }
   koopa_raw_value_data *ret = new koopa_raw_value_data();
   std::vector<size_t> sub_vec;
-  for (size_t i = level; i < size_vec.size(); i++) {
+  for (int i = level; i < size_vec.size(); i++) {
     sub_vec.push_back(size_vec[i]);
   }
   ret->ty = array_type_kind(KOOPA_RTT_INT32, sub_vec);
@@ -849,42 +849,46 @@ void *InitValAST::to_koopa(std::vector<const void *> &init_vec,
 
 void InitValAST::preprocess(std::vector<const void *> &init_vec,
                             std::vector<size_t> size_vec) {
-  size_t len_n = size_vec.back();
-  for (auto init = (*initlist_vec).rbegin(); init != (*initlist_vec).rend();
-       init++) {
-    InitValAST *initval = dynamic_cast<InitValAST *>((*init).get());
-    if (initval->type == Exp) {
-      init_vec.push_back(NumberAST(initval->exp->cal_value()).to_koopa());
-    } else if (initval->type == InitList) {
-      int curr_size = init_vec.size();
-      if (curr_size % len_n != 0) {
-        std::cout << "init list error" << std::endl;
-        assert(false);
-      }
-      int level = 1;
-      int total_size = 1;
-      for (size_t i = size_vec.size() - 2; i > 0; i--) {
-        total_size *= size_vec[i + 1];
-        if (curr_size % total_size == 0 &&
-            curr_size % (total_size * size_vec[i]) != 0) {
-          break;
+  if (type != Empty) {
+    size_t len_n = size_vec.back();
+    for (auto init = (*initlist_vec).rbegin(); init != (*initlist_vec).rend();
+         init++) {
+      InitValAST *initval = dynamic_cast<InitValAST *>((*init).get());
+      if (initval->type == Exp) {
+        init_vec.push_back(NumberAST(initval->exp->cal_value()).to_koopa());
+      } else if (initval->type == InitList || initval->type == Empty) {
+        int curr_size = init_vec.size();
+        std::vector<size_t> sub_vec;
+        if (curr_size % len_n != 0) {
+          std::cout << "init list error" << std::endl;
+          assert(false);
         }
-        total_size *= size_vec[i];
-        level++;
+        int align_size = curr_size / len_n;
+        int level = 1;
+        for (int i = size_vec.size() - 2; i >= 0; i--) {
+          if (align_size % size_vec[i] != 0) {
+            break;
+          }
+          align_size /= size_vec[i];
+          level++;
+        }
+        for (int i = std::max(int(size_vec.size() - level),1); i < size_vec.size(); i++) {
+          sub_vec.push_back(size_vec[i]);
+        }
+        initval->preprocess(init_vec, sub_vec);
       }
-      std::vector<size_t> sub_vec;
-      for (size_t i = size_vec.size() - level; i < size_vec.size(); i++) {
-        sub_vec.push_back(size_vec[i]);
-      }
-      initval->preprocess(init_vec, sub_vec);
-    } else if (initval->type == Empty) {
-      for (size_t i = 0; i < len_n; i++) {
-        init_vec.push_back(NumberAST(0).to_koopa());
-      }
+    }
+  } else {
+    int size = 1;
+    for (int i = 0; i < size_vec.size(); i++) {
+      size *= size_vec[i];
+    }
+    for (int i = 0; i < size; i++) {
+      init_vec.push_back(NumberAST(0).to_koopa());
     }
   }
   int size = 1;
-  for (size_t i = 0; i < size_vec.size(); i++) {
+  for (int i = 0; i < size_vec.size(); i++) {
     size *= size_vec[i];
   }
   while (init_vec.size() % size != 0) {
@@ -914,7 +918,7 @@ void *LValAST::to_left_value() const {
   if (value.type == ValueType::Array) {
     std::vector<koopa_raw_value_data *> get_vec;
 
-    for (size_t i = 0; i < index_array->size(); i++) {
+    for (int i = 0; i < index_array->size(); i++) {
       koopa_raw_value_data *get = new koopa_raw_value_data();
       get->name = nullptr;
       get->used_by = slice(KOOPA_RSIK_VALUE);
@@ -957,7 +961,7 @@ void *LValAST::to_left_value() const {
     load->kind.data.load.src = (koopa_raw_value_t)value.data.pointer_value;
     block_manager.addInst(load);
     std::vector<koopa_raw_value_data *> get_vec;
-    for (size_t i = 0; i < index_array->size(); i++) {
+    for (int i = 0; i < index_array->size(); i++) {
       koopa_raw_value_data *get = new koopa_raw_value_data();
       get->name = nullptr;
       get->used_by = slice(KOOPA_RSIK_VALUE);
@@ -1002,7 +1006,7 @@ void *LValAST::to_koopa() const {
   } else if (value.type == ValueType::Array) {
     std::vector<koopa_raw_value_data *> get_vec;
     if (index_array != nullptr) {
-      for (size_t i = 0; i < index_array->size(); i++) {
+      for (int i = 0; i < index_array->size(); i++) {
         koopa_raw_value_data *get = new koopa_raw_value_data();
         get->name = nullptr;
         get->used_by = slice(KOOPA_RSIK_VALUE);
@@ -1078,7 +1082,7 @@ void *LValAST::to_koopa() const {
     block_manager.addInst(load);
     std::vector<koopa_raw_value_data *> get_vec;
     if (index_array != nullptr) {
-      for (size_t i = 0; i < index_array->size(); i++) {
+      for (int i = 0; i < index_array->size(); i++) {
         koopa_raw_value_data *get = new koopa_raw_value_data();
         get->name = nullptr;
         get->used_by = slice(KOOPA_RSIK_VALUE);
