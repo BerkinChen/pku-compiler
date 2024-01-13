@@ -334,13 +334,12 @@ void RISCV_Builder::raw_visit(const koopa_raw_store_t &s_value) {
           out << "  lw t0, "
               << (s_value.value->kind.data.func_arg_ref.index - 8) * 4
               << "(sp)\n";
-          else {
-            out << "  li t3, "
-                << (s_value.value->kind.data.func_arg_ref.index - 8) * 4
-                << "\n";
-            out << "  add t3, sp, t3\n";
-            out << "  lw t0, 0(t3)\n";
-          }
+        else {
+          out << "  li t3, "
+              << (s_value.value->kind.data.func_arg_ref.index - 8) * 4 << "\n";
+          out << "  add t3, sp, t3\n";
+          out << "  lw t0, 0(t3)\n";
+        }
         store_stack(addr, "t0");
       }
     } else {
@@ -408,24 +407,19 @@ void RISCV_Builder::global_alloc(const koopa_raw_value_t &g_value) {
   }
   if (g_value->kind.data.global_alloc.init->kind.tag == KOOPA_RVT_AGGREGATE) {
     // TODO: aggregate
-    raw_visit(g_value->kind.data.global_alloc.init->kind.data.aggregate
-              );
+    raw_visit(g_value->kind.data.global_alloc.init->kind.data.aggregate);
   }
 }
 
-void RISCV_Builder::raw_visit(const koopa_raw_aggregate_t &agg_value
-                              ) {
+void RISCV_Builder::raw_visit(const koopa_raw_aggregate_t &agg_value) {
   for (size_t i = 0; i < agg_value.elems.len; ++i) {
     auto ptr = agg_value.elems.buffer[i];
     koopa_raw_value_t value = reinterpret_cast<koopa_raw_value_t>(ptr);
     if (value->kind.tag == KOOPA_RVT_INTEGER) {
-      out << "  .word " +
-                 std::to_string(value->kind.data.integer.value) + "\n";
-    }
-    else if (value->kind.tag == KOOPA_RVT_AGGREGATE) {
+      out << "  .word " + std::to_string(value->kind.data.integer.value) + "\n";
+    } else if (value->kind.tag == KOOPA_RVT_AGGREGATE) {
       raw_visit(value->kind.data.aggregate);
-    }
-    else 
+    } else
       assert(false);
   }
 }
@@ -459,25 +453,18 @@ void RISCV_Builder::raw_visit(const koopa_raw_get_elem_ptr_t &gep_value,
   store_stack(addr, "t0");
 }
 void RISCV_Builder::raw_visit(const koopa_raw_get_ptr_t &gp_value, int addr) {
-  if (gp_value.src->kind.tag == KOOPA_RVT_GLOBAL_ALLOC) {
-    out << "  la t0, " + std::string(gp_value.src->name + 1) + "\n";
+  int src_addr = env.get_addr(gp_value.src);
+  if (src_addr != -1) {
+    if (src_addr < 2048 && src_addr >= -2048)
+      out << "  addi t0, sp, " + std::to_string(src_addr) + "\n";
+    else {
+      out << "  li t3, " + std::to_string(src_addr) + "\n";
+      out << "  add t0, sp, t3\n";
+    }
   } else {
-    int src_addr = env.get_addr(gp_value.src);
-    if (src_addr != -1) {
-      if (src_addr < 2048 && src_addr >= -2048)
-        out << "  addi t0, sp, " + std::to_string(src_addr) + "\n";
-      else {
-        out << "  li t3, " + std::to_string(src_addr) + "\n";
-        out << "  add t0, sp, t3\n";
-      }
-    } else {
-      assert(false);
-    }
-    if (gp_value.src->kind.tag == KOOPA_RVT_GET_ELEM_PTR ||
-        gp_value.src->kind.tag == KOOPA_RVT_GET_PTR) {
-      out << "  lw t0, 0(t0)\n";
-    }
+    assert(false);
   }
+  out << "  lw t0, 0(t0)\n";
   load_register(gp_value.index, "t1");
   int size = array_size(gp_value.src->ty->data.pointer.base);
   out << "  li t2, " + std::to_string(size) + "\n";
