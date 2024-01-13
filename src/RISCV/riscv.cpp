@@ -157,7 +157,7 @@ void RISCV_Builder::raw_visit(const koopa_raw_function_t &func) {
   out << std::string(func->name + 1) + ":\n";
   bool call = false;
   int size = func_size(func, call);
-  size = (size + 15) / 16 * 16;
+  size = (size + 15) / 16 * 16 + 2048;
   if (size < 2048 && size >= -2048) {
     out << "  addi sp, sp, -" + std::to_string(size) + "\n";
   } else if (size > 0) {
@@ -366,8 +366,11 @@ void RISCV_Builder::raw_visit(const koopa_raw_load_t &l_value, int addr) {
 
 void RISCV_Builder::raw_visit(const koopa_raw_branch_t &b_value) {
   load_register(b_value.cond, "t0");
-  out << "  bnez t0, " + std::string(b_value.true_bb->name + 1) + "\n";
+  // 解决跳转超限问题
+  out << "  bnez t0, " + std::string(b_value.true_bb->name + 1) + "_tmp" + "\n";
   out << "  j " + std::string(b_value.false_bb->name + 1) + "\n";
+  out << std::string(b_value.true_bb->name + 1) + "_tmp:\n";
+  out << "  j " + std::string(b_value.true_bb->name + 1) + "\n";
 }
 
 void RISCV_Builder::raw_visit(const koopa_raw_jump_t &j_value) {
