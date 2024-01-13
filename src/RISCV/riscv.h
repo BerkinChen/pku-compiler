@@ -31,8 +31,10 @@ class RISCV_Builder {
   static int func_size(koopa_raw_function_t func, bool &call);
   static int bb_size(koopa_raw_basic_block_t bb, bool &call, int &max_arg);
   static int inst_size(koopa_raw_value_t value);
+  static int type_size(koopa_raw_type_t ty);
+  static int array_size(koopa_raw_type_t value);
   void load_register(koopa_raw_value_t value, std::string reg);
-  void store_stack(koopa_raw_value_t value, std::string reg);
+  void store_stack(int addr, std::string reg);
   void raw_visit(const koopa_raw_program_t &raw);
   void raw_visit(const koopa_raw_slice_t &slice);
   void raw_visit(const koopa_raw_function_t &func);
@@ -47,6 +49,9 @@ class RISCV_Builder {
   void raw_visit(const koopa_raw_jump_t &jump_value);
   void raw_visit(const koopa_raw_call_t &call_value, int addr);
   void global_alloc(const koopa_raw_value_t &global_alloc_value);
+  void raw_visit(const koopa_raw_aggregate_t &aggregate_value);
+  void raw_visit(const koopa_raw_get_elem_ptr_t &get_elem_ptr_value, int addr);
+  void raw_visit(const koopa_raw_get_ptr_t &get_ptr_value, int addr);
  public:
    RISCV_Builder(const char *path) {
       out.open(path);

@@ -228,6 +228,15 @@ void *FuncDefAST::to_koopa() const {
   symbol_list.delScope();
   block_manager.delBlock();
   block_manager.delUnreachableBlock();
+  for (int i = 0; i < blocks.size(); i++) {
+    koopa_raw_basic_block_data_t *block =
+        (koopa_raw_basic_block_data_t *)blocks[i];
+    char *name = new char[ident.length() + strlen(block->name) + 2];
+    ("%" + ident + "_" + (block->name + 1))
+        .copy(name, ident.length() + strlen(block->name) + 2);
+    name[ident.length() + strlen(block->name) + 1] = '\0';
+    block->name = name;
+  }
   ret->bbs = slice(blocks, KOOPA_RSIK_BASIC_BLOCK);
   return ret;
 }
@@ -764,13 +773,14 @@ void *VarDefAST::to_koopa(koopa_raw_type_t var_type) const {
             int index = tmp / tmp_size;
             tmp = tmp % tmp_size;
             if (j < get_vec.size()) {
-              if (index == get_vec[j]->kind.data.get_elem_ptr.index->kind.data
-                               .integer.value) {
+              if (index ==
+                  get_vec[j]
+                      ->kind.data.get_elem_ptr.index->kind.data.integer.value) {
                 continue;
               } else {
                 while (j < get_vec.size()) {
                   get_vec.pop_back();
-                }                
+                }
               }
             }
             koopa_raw_value_data *get = new koopa_raw_value_data();
@@ -778,8 +788,10 @@ void *VarDefAST::to_koopa(koopa_raw_type_t var_type) const {
             get->name = nullptr;
             get->used_by = slice(KOOPA_RSIK_VALUE);
             get->kind.tag = KOOPA_RVT_GET_ELEM_PTR;
-            get->kind.data.get_elem_ptr.src = j==0?ret:(koopa_raw_value_t)get_vec[j-1];
-            get->kind.data.get_elem_ptr.index = (koopa_raw_value_t)NumberAST(index).to_koopa();
+            get->kind.data.get_elem_ptr.src =
+                j == 0 ? ret : (koopa_raw_value_t)get_vec[j - 1];
+            get->kind.data.get_elem_ptr.index =
+                (koopa_raw_value_t)NumberAST(index).to_koopa();
             get_vec.push_back(get);
             block_manager.addInst(get);
           }
@@ -788,7 +800,8 @@ void *VarDefAST::to_koopa(koopa_raw_type_t var_type) const {
           store->name = nullptr;
           store->used_by = slice(KOOPA_RSIK_VALUE);
           store->kind.tag = KOOPA_RVT_STORE;
-          store->kind.data.store.dest = (koopa_raw_value_t)get_vec[size_vec.size()-1];
+          store->kind.data.store.dest =
+              (koopa_raw_value_t)get_vec[size_vec.size() - 1];
           store->kind.data.store.value = (koopa_raw_value_t)init_vec[i];
           block_manager.addInst(store);
         }
@@ -945,7 +958,8 @@ void InitValAST::preprocess(std::vector<const void *> &init_vec,
           align_size /= size_vec[i];
           level++;
         }
-        for (int i = std::max(int(size_vec.size() - level),1); i < size_vec.size(); i++) {
+        for (int i = std::max(int(size_vec.size() - level), 1);
+             i < size_vec.size(); i++) {
           sub_vec.push_back(size_vec[i]);
         }
         initval->preprocess(init_vec, sub_vec);
