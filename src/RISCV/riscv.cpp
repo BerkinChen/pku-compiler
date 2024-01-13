@@ -14,7 +14,7 @@ int RISCV_Builder::func_size(koopa_raw_function_t func, bool &call) {
         bb_size(reinterpret_cast<koopa_raw_basic_block_t>(ptr), call, max_arg);
   }
   size += max_arg * 4;
-  size += func->params.len * 4;
+  size += (func->params.len > 8 ? func->params.len - 8 : 0) * 4;
   size += call ? 4 : 0;
   return size;
 }
@@ -157,7 +157,7 @@ void RISCV_Builder::raw_visit(const koopa_raw_function_t &func) {
   out << std::string(func->name + 1) + ":\n";
   bool call = false;
   int size = func_size(func, call);
-  size = (size + 15) / 16 * 16 + 2048;
+  size = (size + 15) / 16 * 16 * 2;
   if (size < 2048 && size >= -2048) {
     out << "  addi sp, sp, -" + std::to_string(size) + "\n";
   } else if (size > 0) {
@@ -385,7 +385,7 @@ void RISCV_Builder::raw_visit(const koopa_raw_call_t &c_value, int addr) {
   }
   bool call = false;
   int size = func_size(c_value.callee, call);
-  size = (size + 15) / 16 * 16;
+  size = (size + 15) / 16 * 16 * 2;
   for (int i = 8; i < c_value.args.len; ++i) {
     auto ptr = c_value.args.buffer[i];
     load_register(reinterpret_cast<koopa_raw_value_t>(ptr), "t0");
