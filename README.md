@@ -10,8 +10,8 @@
 - [x] lv5
 - [x] lv6
 - [x] lv7
-- [ ] lv8
-- [ ] lv9
+- [x] lv8
+- [x] lv9
 
 ## Lv1
 根据参考文档补全sysy.l,sysy.y
@@ -267,3 +267,4 @@ koopa_raw_basic_block_data_t *cond_block =
 由于数组参数的特点，新增了一种指针类型，指针类型和数组类型在传参时较为复杂，例如*[i32, 10]的类型不能给**i32类型的参数赋值，所以需要用getelementptr获取对应的地址，同样对于指针参数，不能使用getelementptr获取对应的地址，所以需要使用getptr来获取对应的地址
 
 ### 目标代码生成
+主要处理了aggregate，getelementptr，getptr三种指令，并且对于store和load指令，如果是getelementptr或者getptr的结果，需要一些额外的处理
