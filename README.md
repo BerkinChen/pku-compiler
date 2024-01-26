@@ -67,10 +67,9 @@ lv1中我们将要用到
 - koopa_raw_integer_t：是Koopa IR中的整数，有一个属性，即整数的值，属性类型为int
 - koopa_raw_return_t：是Koopa IR中的返回值，有一个属性，即返回值的值，注意该属性的类型是koopa_raw_value_t，而不是koopa_raw_integer_t
 
-> [!TIP]
-> 根据以上不难看出，我们需要定义一个slice函数，用来创建一个空的slice（即使为空在生成Koopa IR时也需要有这个属性），或者将一个vector<const void *>转换为slice，以及一个用来创建koopa_raw_type_t的函数，用来为各种各样的指令、函数来生成对应的类型。
+根据以上不难看出，我们需要定义一个slice函数，用来创建一个空的slice（即使为空在生成Koopa IR时也需要有这个属性），或者将一个vector<const void *>转换为slice，以及一个用来创建koopa_raw_type_t的函数，用来为各种各样的指令、函数来生成对应的类型。
 
-> [!IMPORTANT]
+> [!TIP]
 > 在lv1中，我们应该先定义一个程序，然后向其funcs中添加函数，再向函数的bbs中添加基本块，最后向基本块的insts中添加指令，该生成什么指令和SysY代码相关，这个流程在lv6之前都是一样的。
 
 由于lv1中只有一个函数和一个基本块，我们的IR应该类似于如下结构：
@@ -137,7 +136,7 @@ function.bbs = slice(); // slice()是一个返回koopa_raw_slice_t的函数，�
 
 lv2中并没有与Koopa IR生成的相关内容.
 
-> [!NOTE]
+> [!TIP]
 > 这里强烈建议使用koopa_dump_to_string将生成的Koopa IR转换为字符串，再调用koopa_parse_from_string将其转换为Koopa IR，这样的操作现在来看是多余的，但是在后面的实现中，这样的流程可以自动帮你处理好属性名、基本块名重复的问题，而不需要你手动处理。
 
 ### lv3
@@ -148,13 +147,12 @@ lv3中新增了表达式计算，对应了koopa_raw_binary_t，它有以下三�
 - lhs：类型为koopa_raw_value_t，指示了左操作数
 - rhs：类型为koopa_raw_value_t，指示了右操作数
 
+了解这个结构之后不难看出，创建一个二元运算的过程是解析AST得到运算类型，然后创建lhs和rhs对应的value，最后创建一个binary，将这三个属性填入即可。
+ 
+例如对于（2-1）*3，你需要创建一个binary，op为\*，lhs为一个binary，op为KOOPA_RBO_SUB，lhs为一个integer，值为2；rhs为一个integer，值为1；rhs为一个integer，值为3。
+
+
 > [!TIP]
-> 了解这个结构之后不难看出，创建一个二元运算的过程是解析AST得到运算类型，然后创建lhs和rhs对应的value，最后创建一个binary，将这三个属性填入即可。
-> 
-> 例如对于（2-1）*3，你需要创建一个binary，op为\*，lhs为一个binary，op为KOOPA_RBO_SUB，lhs为一个integer，值为2；rhs为一个integer，值为1；rhs为一个integer，值为3。
-
-
-> [!CAUTION]
 > 要注意的是，对于一元运算-和!(+不用生成IR)，你需要将其转换为二元运算，例如-1应该转换为0-1，!1应该转换为1==0，这样才能正确生成IR。此外，对于逻辑运算符&&和||，Koopa IR的KOOPA_RBO_AND和KOOPA_RBO_OR是bitwise的，而不是logical的，你需要将lhs和rhs转换为0或1，然后再进行运算。如果顺利编码到此，你不难想到如何进行转换。
 
 ### lv4
@@ -170,14 +168,13 @@ lv3中新增了表达式计算，对应了koopa_raw_binary_t，它有以下三�
   - dest：store的目的地，类型为koopa_raw_value_t
   - value：store的值，类型为koopa_raw_value_t
 
-> [!TIP]
-> 了解了以上定义后，不难推断出，当遇到变量的定义时，你需要创建一个alloc，当遇到变量的使用时，你需要创建一个load，src为该alloc指令，当遇到变量的赋值时，你需要创建一个store，dest为该alloc指令，value为赋值的值。
->
-> 例如对于int a = 1;，你需要创建一个alloc，名字为@a，类型为INT32，然后创建一个store，dest为@a，然后创建一个integer，值为1，就完成了对a的定义和赋值。
-> 
-> 而对于a = a + 1;，你需要创建一个load，src为@a，然后创建一个binary，op为KOOPA_RBO_ADD，lhs为load，rhs为integer，值为1，然后创建一个store，dest为@a，value为binary，就完成了对a的计算和赋值。
+了解了以上定义后，不难推断出，当遇到变量的定义时，你需要创建一个alloc，当遇到变量的使用时，你需要创建一个load，src为该alloc指令，当遇到变量的赋值时，你需要创建一个store，dest为该alloc指令，value为赋值的值。
 
-> [!IMPORTANT]
+例如对于int a = 1;，你需要创建一个alloc，名字为@a，类型为INT32，然后创建一个store，dest为@a，然后创建一个integer，值为1，就完成了对a的定义和赋值。
+ 
+而对于a = a + 1;，你需要创建一个load，src为@a，然后创建一个binary，op为KOOPA_RBO_ADD，lhs为load，rhs为integer，值为1，然后创建一个store，dest为@a，value为binary，就完成了对a的计算和赋值。
+
+> [!TIP]
 > 由于load和store的src和dest都是alloc value，所以对于符号表的创建，在符号表中保存koopa_raw_value_t是一个不错的选择。
 
 ### lv5
@@ -216,8 +213,7 @@ Koopa IR中的控制流转移有以下几种：
   - target：跳转的基本块，类型为koopa_raw_basic_block_t
   - args：跳转的基本块的参数，类型为koopa_raw_slice_t，不做SSA优化不会用到
 
-> [!TIP]
-> 了解了以上定义后，不难推断出，当遇到if语句时，你需要创建一个br，cond为if的条件，true_block为if的true_block，false_block为if的false_block，当遇到true_block结尾，你需要创建一个jump，target为if的end_block，当遇到false_block结尾，你需要创建一个jump，target为if的end_block。
+了解了以上定义后，不难推断出，当遇到if语句时，你需要创建一个br，cond为if的条件，true_block为if的true_block，false_block为if的false_block，当遇到true_block结尾，你需要创建一个jump，target为if的end_block，当遇到false_block结尾，你需要创建一个jump，target为if的end_block。
 
-> [!IMPORTANT]
+> [!TIP]
 > 在此处由于基本块的增多，你应该创建某种数据结构来存放所有的基本块，以及指出现在生成的指令应该保存在哪个基本块中，这样会大大减小coding的难度。
