@@ -67,7 +67,8 @@ lv1中我们将要用到
 - koopa_raw_integer_t：是Koopa IR中的整数，有一个属性，即整数的值，属性类型为int
 - koopa_raw_return_t：是Koopa IR中的返回值，有一个属性，即返回值的值，注意该属性的类型是koopa_raw_value_t，而不是koopa_raw_integer_t
 
-!!! Tip 根据以上不难看出，我们需要定义一个slice函数，用来创建一个空的slice（即使为空在生成Koopa IR时也需要有这个属性），或者将一个vector<const void *>转换为slice，以及一个用来创建koopa_raw_type_t的函数，用来为各种各样的指令、函数来生成对应的类型。
+> [!TIP]
+> 根据以上不难看出，我们需要定义一个slice函数，用来创建一个空的slice（即使为空在生成Koopa IR时也需要有这个属性），或者将一个vector<const void *>转换为slice，以及一个用来创建koopa_raw_type_t的函数，用来为各种各样的指令、函数来生成对应的类型。
 
 !!! Important 在lv1中，我们应该先定义一个程序，然后向其funcs中添加函数，再向函数的bbs中添加基本块，最后向基本块的insts中添加指令，该生成什么指令和SysY代码相关，这个流程在lv5之前都是一样的。
 
