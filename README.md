@@ -27,6 +27,8 @@
 
 鉴于Koopa IR的C++接口文档并不完善，加之本人觉得实现一个内存形式的IR无论是从对IR设计的理解或者是编码的体验来说都优于生成文本形式的IR，在此根据完成实践中的记录做补充（小白向，大佬请忽略x
 
+文档的最后记录了一些测试点里的坑（可能不全面，对此感兴趣的可以直接跳到最后
+
 ### lv1
 
 lv1中我们将要用到
@@ -67,10 +69,9 @@ lv1中我们将要用到
 - koopa_raw_integer_t：是Koopa IR中的整数，有一个属性，即整数的值，属性类型为int
 - koopa_raw_return_t：是Koopa IR中的返回值，有一个属性，即返回值的值，注意该属性的类型是koopa_raw_value_t，而不是koopa_raw_integer_t
 
-根据以上不难看出，我们需要定义一个slice函数，用来创建一个空的slice（即使为空在生成Koopa IR时也需要有这个属性），或者将一个vector<const void *>转换为slice，以及一个用来创建koopa_raw_type_t的函数，用来为各种各样的指令、函数来生成对应的类型。
-
 > [!TIP]
-> 在lv1中，我们应该先定义一个程序，然后向其funcs中添加函数，再向函数的bbs中添加基本块，最后向基本块的insts中添加指令，该生成什么指令和SysY代码相关，这个流程在lv6之前都是一样的。
+> 根据以上不难看出，我们需要定义一个slice函数，用来创建一个空的slice（即使为空在生成Koopa IR时也需要有这个属性），或者将一个vector<const void *>转换为slice，以及一个用来创建koopa_raw_type_t的函数，用来为各种各样的指令、函数来生成对应的类型。
+
 
 由于lv1中只有一个函数和一个基本块，我们的IR应该类似于如下结构：
 
@@ -84,6 +85,8 @@ F --> G[insts]
 G --> H[ret_value]
 H --> I[int_value]
 ```
+> [!TIP]
+> 在lv1中，我们应该先定义一个程序，然后向其funcs中添加函数，再向函数的bbs中添加基本块，最后向基本块的insts中添加指令，该生成什么指令和SysY代码相关，这个流程在lv6之前都是一样的。
 
 对于slice的生成，类似于如下代码：
 
@@ -168,6 +171,9 @@ lv3中新增了表达式计算，对应了koopa_raw_binary_t，它有以下三�
   - dest：store的目的地，类型为koopa_raw_value_t
   - value：store的值，类型为koopa_raw_value_t
 
+> [!CAUTION]
+> load的src和store的dest都必须是kind.tag为KOOPA_RVT_ALLOC的value。store value的类型是UNIT(void)，load value的类型是INT32。
+
 了解了以上定义后，不难推断出，当遇到变量的定义时，你需要创建一个alloc，当遇到变量的使用时，你需要创建一个load，src为该alloc指令，当遇到变量的赋值时，你需要创建一个store，dest为该alloc指令，value为赋值的值。
 
 例如对于int a = 1;，你需要创建一个alloc，名字为@a，类型为INT32，然后创建一个store，dest为@a，然后创建一个integer，值为1，就完成了对a的定义和赋值。
@@ -217,3 +223,64 @@ Koopa IR中的控制流转移有以下几种：
 
 > [!TIP]
 > 在此处由于基本块的增多，你应该创建某种数据结构来存放所有的基本块，以及指出现在生成的指令应该保存在哪个基本块中，这样会大大减小coding的难度。
+
+
+## lv7
+
+本小节新增了while语句，本质上仍是分支语句，所以在Koopa IR生成中没有新增内容。
+
+> [!TIP]
+> 为了处理break和continue，你需要一个数据结构来保存当前的循环，以及break和continue应该跳转到哪个基本块，也就是当前循环的end_block和body_block。
+
+## lv8
+
+本小节新增了函数和全局变量，以及函数的调用和函数的参数传递，对应到Koopa IR中，新增的内容有：
+
+- call：对应的数据域为koopa_raw_call_t，有三个属性，分别是：
+  - callee：调用的函数，类型为koopa_raw_function_t
+  - args：调用的参数，类型为koopa_raw_slice_t，存储的是koopa_raw_value_t
+- function：lv1中介绍了部分，lv8中新增了以下两个部分：
+  - params：函数的参数列表，类型为koopa_raw_slice_t，存储的是koopa_raw_value_t，tag为KOOPA_RVT_FUNC_ARG_REF
+  - ty：函数的类型，lv1中介绍了部分，lv8中新增了以下两个部分：
+    - params：函数的参数类型，类型为koopa_raw_slice_t，存储的是koopa_raw_type_t
+    - ret：函数的返回值类型，类型为koopa_raw_type_t，lv1中只有INT32，此处新增了UNIT(void)
+- func_arg_ref：函数的参数引用，有一个属性，即参数的序号，类型为int
+
+> [!TIP]
+> 函数参数的顺序在params中和其ty中params的顺序应当是对应的，由于此处参数只有INT32不会出错，但是在lv9中，参数的类型有多种，所以你需要注意这一点。
+
+对于全局变量的定义，有一条新增的指令：
+
+- global：对应的数据域为koopa_raw_global_alloc_t，其name和ty与alloc的含义一致，新增了一个属性，即：
+  - init：全局变量的初始值，类型为koopa_raw_value_t
+
+> [!TIP]
+> 全局变量的定义和局部变量的定义类似，只是局部变量需要先alloc再store，而全局变量只需要global_alloc，并把init设置为对于的value即可。
+
+对于库函数的定义，给出一个例子
+  
+  ```c++
+  func = new koopa_raw_function_data_t();
+  ty = new koopa_raw_type_kind_t();
+  ty->tag = KOOPA_RTT_FUNCTION;
+  ty->data.function.params = slice(KOOPA_RSIK_TYPE);
+  ty->data.function.ret = type_kind(KOOPA_RTT_INT32);
+  func->ty = ty;
+  func->name = "@getch";
+  func->params = slice(KOOPA_RSIK_VALUE);
+  func->bbs = slice(KOOPA_RSIK_BASIC_BLOCK);
+  symbol_list.addSymbol(func->name + 1, Value(ValueType::Func, func));
+  lib_func_vec.push_back(func);
+  ```
+
+其他库函数的定义与此类似，注意库函数的参数类型和返回值类型。
+
+## lv9
+
+TODO
+
+## 测试点中的坑
+
+- int类型的函数没写返回值需要返回0
+- 跳转距离过长超出条件跳转的限制，需要在RISC-V中进行处理
+- 数组初始化有很抽象的情况，例如int a[3][4][3] = {{{}, 1, 2, 3}, {}, 4, 5, 6, {}, 7, 8, 9, {10}}，等价于{{{0, 0, 0}, {1, 2, 3}, {0, 0, 0}, {0, 0, 0}}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}, {{4, 5, 6}, {0, 0, 0}, {7, 8, 9}, {10, 0, 0}}}
