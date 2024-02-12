@@ -277,7 +277,27 @@ Koopa IR中的控制流转移有以下几种：
 
 ## lv9
 
-TODO
+lv9中新增了数组类型和数组参数，对应到Koopa IR中，新增的内容有：
+
+- koopa_raw_type_t：新增了以下两个部分：
+  - tag：KOOPA_RTT_ARRAY，即数组类型以及KOOPA_RTT_POINTER，即指针类型
+  - data.array：数组类型的数据，有两个属性，分别是：
+    - base：数组元素的类型，类型为koopa_raw_type_t，多维数组即一层层嵌套，最后一层类型为INT32
+    - len：数组的长度，类型为int
+  - data.pointer：指针类型的数据，有一个属性：
+    - base： 即指针指向的类型，类型为koopa_raw_type_t
+- koopa_aggregate_t：初始化数组的value，有一个属性，即数组的元素，类型为koopa_raw_slice_t，存储的是koopa_raw_value_t，多维数组可以通过aggregate嵌套实现
+- koopa_raw_get_elem_ptr_t：获取数组元素的指针，有三个属性，分别是：
+  - src：源数组，类型为koopa_raw_value_t
+  - index：数组的下标，类型为koopa_raw_value_t
+- koopa_raw_get_ptr：获取指针，有两个属性，分别是：
+  - src：源指针，类型为koopa_raw_value_t
+  - index：指针的偏移，类型为koopa_raw_value_t
+  
+> [!TIP]
+> 注意get_elem_ptr和get_ptr使用上的区别，例如对于类型是 \*[i32, 3]的数组，get_elem_ptr的返回值的类型为*i32，而get_ptr的返回值的类型仍为\*[i32, 3]。同时注意传递数组参数相当于传递其第一个元素的地址。
+
+写到此处，你应该已经比较熟悉Koopa IR的接口，所以lv9小节没有做过多的展开，作为难度最高的一个小节，你应该尝试自己完成。
 
 ## 测试点中的坑
 
